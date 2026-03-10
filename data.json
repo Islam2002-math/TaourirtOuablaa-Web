@@ -1,0 +1,73 @@
+{
+  "tournois": [
+    {
+      "id": "t1",
+      "name": "Tournoi d'Été 2026",
+      "startDate": "2026-02-20",
+      "endDate": "2026-03-06",
+      "teams": 17,
+      "status": "active",
+      "description": "Le grand tournoi annuel avec 17 équipes réparties en 4 groupes.",
+      "image": ""
+    }
+  ],
+  "scores": [
+    {"id": "j1m1", "homeTeam": "TAOURIRT-OUABLA \"A\"", "awayTeam": "AKBOU \"SOUMMAM\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-20T20:00", "status": "upcoming", "journee": "J1"},
+    {"id": "j1m2", "homeTeam": "ALLAGHENE", "awayTeam": "TIZI-ALLOUANE", "homeScore": 0, "awayScore": 0, "date": "2026-02-20T21:00", "status": "upcoming", "journee": "J1"},
+    {"id": "j2m1", "homeTeam": "TAOURIRT-OUABLA \"B\"", "awayTeam": "ARRAFOU \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-21T20:00", "status": "upcoming", "journee": "J2"},
+    {"id": "j2m2", "homeTeam": "SEDDOUK", "awayTeam": "QUIZRANE", "homeScore": 0, "awayScore": 0, "date": "2026-02-21T21:00", "status": "upcoming", "journee": "J2"},
+    {"id": "j3m1", "homeTeam": "EQUIPE DES AMIS", "awayTeam": "GUENDOUZA \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-22T20:00", "status": "upcoming", "journee": "J3"},
+    {"id": "j3m2", "homeTeam": "GUENZET", "awayTeam": "TAZMALT", "homeScore": 0, "awayScore": 0, "date": "2026-02-22T21:00", "status": "upcoming", "journee": "J3"},
+    {"id": "j4m1", "homeTeam": "APC AIT R'ZINE", "awayTeam": "AOURIR DJEDIDA", "homeScore": 0, "awayScore": 0, "date": "2026-02-23T20:00", "status": "upcoming", "journee": "J4"},
+    {"id": "j4m2", "homeTeam": "GUENDOUZE", "awayTeam": "TIGHILT OUMIAL", "homeScore": 0, "awayScore": 0, "date": "2026-02-23T21:00", "status": "upcoming", "journee": "J4"},
+    {"id": "j5m1", "homeTeam": "TAOURIRT-OUABLA \"A\"", "awayTeam": "RIQUET \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-24T20:00", "status": "upcoming", "journee": "J5"},
+    {"id": "j5m2", "homeTeam": "ALLAGHENE", "awayTeam": "AKBOU \"SOUMMAM\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-24T21:00", "status": "upcoming", "journee": "J5"},
+    {"id": "j6m1", "homeTeam": "TAOURIRT-OUABLA \"B\"", "awayTeam": "QUIZRANE", "homeScore": 0, "awayScore": 0, "date": "2026-02-25T20:00", "status": "upcoming", "journee": "J6"},
+    {"id": "j6m2", "homeTeam": "SEDDOUK", "awayTeam": "ARRAFOU \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-25T21:00", "status": "upcoming", "journee": "J6"},
+    {"id": "j7m1", "homeTeam": "AKBOU \"SOUMMAM\"", "awayTeam": "RIQUET \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-28T20:00", "status": "upcoming", "journee": "J7"},
+    {"id": "j8m1", "homeTeam": "EQUIPE DES AMIS", "awayTeam": "TAZMALT", "homeScore": 0, "awayScore": 0, "date": "2026-02-27T20:00", "status": "upcoming", "journee": "J8"},
+    {"id": "j8m2", "homeTeam": "GUENZET", "awayTeam": "GUENDOUZA \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-02-27T21:00", "status": "upcoming", "journee": "J8"},
+    {"id": "j9m1", "homeTeam": "APC AIT R'ZINE", "awayTeam": "TIGHILT OUMIAL", "homeScore": 0, "awayScore": 0, "date": "2026-02-28T20:00", "status": "upcoming", "journee": "J9"},
+    {"id": "j9m2", "homeTeam": "GUENDOUZE", "awayTeam": "AOURIR DJEDIDA", "homeScore": 0, "awayScore": 0, "date": "2026-02-28T21:00", "status": "upcoming", "journee": "J9"},
+    {"id": "j10m1", "homeTeam": "ALLAGHENE", "awayTeam": "RIQUET \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-03-01T20:00", "status": "upcoming", "journee": "J10"},
+    {"id": "j10m2", "homeTeam": "AKBOU \"SOUMMAM\"", "awayTeam": "TIZI-ALLOUANE", "homeScore": 0, "awayScore": 0, "date": "2026-03-01T21:00", "status": "upcoming", "journee": "J10"},
+    {"id": "j11m1", "homeTeam": "TAOURIRT-OUABLA \"B\"", "awayTeam": "SEDDOUK", "homeScore": 0, "awayScore": 0, "date": "2026-03-02T20:00", "status": "upcoming", "journee": "J11"},
+    {"id": "j11m2", "homeTeam": "ARRAFOU \"AKBOU\"", "awayTeam": "QUIZRANE", "homeScore": 0, "awayScore": 0, "date": "2026-03-02T21:00", "status": "upcoming", "journee": "J11"},
+    {"id": "j12m1", "homeTeam": "TAOURIRT-OUABLA \"A\"", "awayTeam": "TIZI-ALLOUANE", "homeScore": 0, "awayScore": 0, "date": "2026-03-03T20:00", "status": "upcoming", "journee": "J12"},
+    {"id": "j13m1", "homeTeam": "EQUIPE DES AMIS", "awayTeam": "GUENZET", "homeScore": 0, "awayScore": 0, "date": "2026-03-04T20:00", "status": "upcoming", "journee": "J13"},
+    {"id": "j13m2", "homeTeam": "GUENDOUZA \"AKBOU\"", "awayTeam": "TAZMALT", "homeScore": 0, "awayScore": 0, "date": "2026-03-04T21:00", "status": "upcoming", "journee": "J13"},
+    {"id": "j14m1", "homeTeam": "APC AIT R'ZINE", "awayTeam": "GUENDOUZE", "homeScore": 0, "awayScore": 0, "date": "2026-03-05T20:00", "status": "upcoming", "journee": "J14"},
+    {"id": "j14m2", "homeTeam": "AOURIR DJEDIDA", "awayTeam": "TIGHILT OUMIAL", "homeScore": 0, "awayScore": 0, "date": "2026-03-05T21:00", "status": "upcoming", "journee": "J14"},
+    {"id": "j15m1", "homeTeam": "TAOURIRT-OUABLA \"A\"", "awayTeam": "ALLAGHENE", "homeScore": 0, "awayScore": 0, "date": "2026-03-06T20:00", "status": "upcoming", "journee": "J15"},
+    {"id": "j15m2", "homeTeam": "TIZI-ALLOUANE", "awayTeam": "RIQUET \"AKBOU\"", "homeScore": 0, "awayScore": 0, "date": "2026-03-06T21:00", "status": "upcoming", "journee": "J15"}
+  ],
+  "news": [],
+  "gallery": [],
+  "standings": {
+    "A": [
+      { "team": "TAOURIRT-OUABLA \"A\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "ALLAGHENE", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "RIQUET \"AKBOU\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "AKBOU \"SOUMMAM\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "TIZI-ALLOUANE", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 }
+    ],
+    "B": [
+      { "team": "TAOURIRT-OUABLA \"B\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "SEDDOUK", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "ARRAFOU \"AKBOU\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "QUIZRANE", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 }
+    ],
+    "C": [
+      { "team": "EQUIPE DES AMIS", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "GUENZET", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "GUENDOUZA \"AKBOU\"", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "TAZMALT", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 }
+    ],
+    "D": [
+      { "team": "APC AIT R'ZINE", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "GUENDOUZE", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "AOURIR DJEDIDA", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 },
+      { "team": "TIGHILT OUMIAL", "mj": 0, "v": 0, "n": 0, "d": 0, "bp": 0, "bc": 0 }
+    ]
+  }
+}

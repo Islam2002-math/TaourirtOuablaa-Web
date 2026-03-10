@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>Taourirt-Ouablaa - Tournois de Football</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://taourirt-tournoi-default-rtdb.europe-west1.firebasedatabase.app" crossorigin>
+    <link rel="dns-prefetch" href="https://taourirt-tournoi-default-rtdb.europe-west1.firebasedatabase.app">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <img src="logo.png" alt="Logo Taourirt-Ouablaa" class="logo-img">
+                <span>Taourirt-Ouablaa</span>
+            </div>
+            <div class="buteurs-search-bar" id="globalSearchBar" style="max-width:340px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="rechercheGlobalInput" placeholder="Rechercher équipe, joueur, actualité...">
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#accueil" class="nav-link active">Accueil</a></li>
+                <li><a href="#scores" class="nav-link">Scores</a></li>
+                <li><a href="#classement" class="nav-link">Classement</a></li>
+                <li><a href="#tournois" class="nav-link">Tournois</a></li>
+                <li><a href="#bracket" class="nav-link">Bracket</a></li>
+                <li><a href="#contact" class="nav-link">Contact</a></li>
+            </ul>
+            <div class="nav-actions">
+                <button class="btn-notif" id="notifToggle" onclick="toggleNotifications()" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-badge" id="notifBadge" style="display:none;">!</span>
+                </button>
+                <button class="btn-notif btn-dark-toggle" id="darkToggle" onclick="toggleDarkMode()" title="Mode sombre">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn-admin" id="adminToggle" onclick="toggleAdminMode()" style="display:none;">
+                    <i class="fas fa-lock"></i> Admin
+                </button>
+            </div>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Live Ticker -->
+    <div class="live-ticker" id="liveTicker" style="display:none;"></div>
+
+    <!-- Admin Toolbar -->
+    <div class="admin-toolbar" id="adminToolbar" style="display:none;">
+        <div class="container">
+            <div class="admin-toolbar-content">
+                <span class="admin-toolbar-label"><i class="fas fa-tools"></i> Outils Admin</span>
+                <div class="admin-toolbar-buttons">
+                    <button class="btn btn-toolbar btn-sync" onclick="forceSyncToCloud()">
+                        <i class="fas fa-cloud-upload-alt"></i> Synchroniser
+                    </button>
+                    <button class="btn btn-toolbar btn-export" onclick="exportData()">
+                        <i class="fas fa-download"></i> Exporter
+                    </button>
+                    <button class="btn btn-toolbar btn-import" onclick="importData()">
+                        <i class="fas fa-upload"></i> Importer
+                    </button>
+                    <button class="btn btn-toolbar btn-reset" onclick="resetToDefault()">
+                        <i class="fas fa-undo"></i> Reinitialiser
+                    </button>
+                    <button class="btn btn-toolbar" onclick="openLogs()">
+                        <i class="fas fa-list"></i> Logs
+                    </button>
+                    <button class="btn btn-toolbar" onclick="openRosterModal()">
+                        <i class="fas fa-users"></i> Joueurs
+                    </button>
+                    <button class="btn btn-toolbar btn-recalc" onclick="recalculerEtAfficher()">
+                        <i class="fas fa-calculator"></i> Recalculer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match du Jour Banner -->
+    <div id="matchDuJourBanner" class="mdj-banner" style="display:none;">
+        <div class="container">
+            <div id="matchDuJourContent"></div>
+        </div>
+    </div>
+
+    <!-- Hero Section - Split Layout -->
+    <section id="accueil" class="hero">
+        <div class="hero-bg">
+            <img src="field1.jpg" alt="Terrain de football" class="hero-bg-img" fetchpriority="high">
+            <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-split container">
+            <div class="hero-left">
+                <div class="hero-badge">Tournoi Ramadan 2026</div>
+                <h1 class="hero-title">Taourirt<br>Ouablaa</h1>
+                <p class="hero-subtitle">Les Tournois de Football</p>
+                <p class="hero-description">Vivez la passion du football dans notre village. Suivez les matchs, les scores et le classement en temps reel.</p>
+                <div class="hero-buttons">
+                    <a href="#scores" class="btn btn-primary btn-hero"><i class="fas fa-futbol"></i> Voir les Matchs</a>
+                    <a href="#classement" class="btn btn-outline btn-hero"><i class="fas fa-table"></i> Classement</a>
+                </div>
+                <div id="countdownSection" class="countdown-box" style="display:none;"></div>
+            </div>
+            <div class="hero-right">
+                <div class="hero-card hero-card-next" id="heroNextMatch">
+                    <div class="hero-card-header">
+                        <span class="hero-card-badge"><i class="fas fa-clock"></i> Prochain Match</span>
+                    </div>
+                    <div class="hero-card-body" id="heroNextMatchBody">
+                        <div class="hero-card-placeholder"><i class="fas fa-futbol fa-spin"></i> Chargement...</div>
+                    </div>
+                </div>
+                <div class="hero-card hero-card-result" id="heroLastResult">
+                    <div class="hero-card-header">
+                        <span class="hero-card-badge hero-card-badge-result"><i class="fas fa-flag-checkered"></i> Dernier Resultat</span>
+                    </div>
+                    <div class="hero-card-body" id="heroLastResultBody">
+                        <div class="hero-card-placeholder"><i class="fas fa-futbol fa-spin"></i> Chargement...</div>
+                    </div>
+                </div>
+                <div class="hero-card hero-card-top" id="heroTopScorer">
+                    <div class="hero-card-header">
+                        <span class="hero-card-badge hero-card-badge-top"><i class="fas fa-crown"></i> Meilleur Buteur</span>
+                    </div>
+                    <div class="hero-card-body" id="heroTopScorerBody">
+                        <div class="hero-card-placeholder"><i class="fas fa-futbol fa-spin"></i> Chargement...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Statistiques -->
+    <section class="stats-bar">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-trophy"></i></div>
+                    <div class="stat-number" id="statTournois" data-target="0">0</div>
+                    <div class="stat-label">Tournois Organises</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-number" id="statEquipes" data-target="0">0</div>
+                    <div class="stat-label">Equipes Participantes</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-futbol"></i></div>
+                    <div class="stat-number" id="statMatchs" data-target="0">0</div>
+                    <div class="stat-label">Matchs Joues</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-star"></i></div>
+                    <div class="stat-number" id="statButs" data-target="0">0</div>
+                    <div class="stat-label">Buts Marques</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Tournois -->
+    <section id="tournois" class="section tournois-section">
+        <div class="container">
+            <h2 class="section-title">
+                <i class="fas fa-trophy"></i> Tournois
+            </h2>
+            <div class="admin-actions" style="display:none;">
+                <button class="btn btn-success" onclick="openModal('tournoiModal')">
+                    <i class="fas fa-plus"></i> Ajouter un Tournoi
+                </button>
+            </div>
+            <div class="tournois-grid" id="tournoiGrid"></div>
+            <div class="empty-state" id="tournoiEmpty" style="display:none;">
+                <i class="fas fa-trophy"></i>
+                <p>Aucun tournoi pour le moment</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Scores -->
+    <section id="scores" class="section scores-section" role="region" aria-label="Matchs et scores">
+        <div class="container">
+            <h2 class="section-title">
+                <i class="fas fa-chart-line"></i> Matchs
+            </h2>
+            <div class="admin-actions" style="display:none;">
+                <button class="btn btn-success" onclick="openModal('scoreModal')">
+                    <i class="fas fa-plus"></i> Ajouter un Match
+                </button>
+            </div>
+            <div class="scores-filter">
+                <button class="filter-btn" data-filter="all">Tous</button>
+                <button class="filter-btn" data-filter="finished">Termines</button>
+                <button class="filter-btn" data-filter="upcoming">A venir</button>
+                <button class="filter-btn" data-filter="live">En direct</button>
+                <button class="filter-btn active" data-filter="today">Aujourd'hui</button>
+                <button class="filter-btn" data-filter="favorites">Favoris</button>
+            </div>
+            <div class="buteurs-search-bar" style="margin-bottom:1rem;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="rechercheScoresInput" placeholder="Rechercher une équipe...">
+            </div>
+            <div class="journee-nav" id="journeeNav"></div>
+            <div class="scores-container" id="scoresContainer">
+                <div class="skeleton-cards" id="scoresSkeleton">
+                    <div class="skeleton-card"><div class="skeleton" style="height:18px;width:60%;margin-bottom:12px"></div><div class="skeleton" style="height:40px;width:100%;margin-bottom:8px"></div><div class="skeleton" style="height:14px;width:40%"></div></div>
+                    <div class="skeleton-card"><div class="skeleton" style="height:18px;width:60%;margin-bottom:12px"></div><div class="skeleton" style="height:40px;width:100%;margin-bottom:8px"></div><div class="skeleton" style="height:14px;width:40%"></div></div>
+                </div>
+            </div>
+            <h3 class="section-subtitle" style="margin-top:1.5rem;">Résultats précédents</h3>
+            <div class="scores-container" id="previousResultsContainer"></div>
+            <div class="empty-state" id="scoreEmpty" style="display:none;">
+                <i class="fas fa-futbol"></i>
+                <p>Aucun match pour le moment</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Classement -->
+    <section id="classement" class="section classement-section">
+        <div class="container">
+            <h2 class="section-title">
+                <i class="fas fa-table"></i> Classement des Groupes
+            </h2>
+            <p class="section-subtitle">Phase de groupes - Les 2 premiers de chaque groupe sont qualifies</p>
+            <div class="standings-grid" id="standingsContainer"></div>
+
+            <!-- Classement des Buteurs -->
+            <h2 class="section-title" style="margin-top:2.5rem;">
+                <i class="fas fa-futbol"></i> Classement des Buteurs
+            </h2>
+            <p class="section-subtitle">Meilleurs buteurs du tournoi</p>
+            <div class="buteurs-search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="rechercheButeursInput" placeholder="Rechercher un joueur ou une equipe...">
+            </div>
+            <div id="buteursContainer"></div>
+        </div>
+    </section>
+
+
+    <!-- Section Bracket / Arbre du Tournoi -->
+    <section id="bracket" class="section bracket-section">
+        <div class="container">
+            <h2 class="section-title">
+                <i class="fas fa-sitemap"></i> Phases Eliminatoires
+            </h2>
+            <p class="section-subtitle">Quarts de finale, demi-finales et finale</p>
+            <div class="admin-actions" style="display:none;">
+                <button class="btn btn-success" onclick="openBracketEditor()">
+                    <i class="fas fa-edit"></i> Ajouter un match
+                </button>
+                <button class="btn btn-danger btn-small" onclick="resetBracket()" style="margin-left:0.5rem;">
+                    <i class="fas fa-undo"></i> Reinitialiser Bracket
+                </button>
+            </div>
+            <div id="bracketFeatured"></div>
+            <div class="bracket-tree" id="bracketContainer"></div>
+        </div>
+    </section>
+
+
+    <!-- Section Contact -->
+    <section id="contact" class="section contact-section">
+        <div class="container">
+            <h2 class="section-title">
+                <i class="fas fa-envelope"></i> Contact
+            </h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Adresse</h4>
+                            <p>Ait R'zine, Taourirt-Ouablaa, Bejaia, Algerie</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h4>Telephone</h4>
+                            <p>+213 562 203 769</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>À définir prochainement </p>
+                        </div>
+                    </div>
+                    <div class="social-links">
+                        <a href="https://web.facebook.com/profile.php?id=61570058609584&locale=fr_FR" target="_blank" rel="noopener noreferrer" class="social-link facebook-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-tiktok"></i></a>
+                    </div>
+                </div>
+                <form class="contact-form" id="contactForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nom complet</label>
+                            <input type="text" required placeholder="Votre nom">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" required placeholder="Votre email">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Sujet</label>
+                        <input type="text" required placeholder="Sujet du message">
+                    </div>
+                    <div class="form-group">
+                        <label>Message</label>
+                        <textarea rows="5" required placeholder="Votre message..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Envoyer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <img src="logo.png" alt="Logo" class="footer-logo" loading="lazy">
+                    <h3>Taourirt-Ouablaa</h3>
+                    <p>La passion du football au coeur de notre village. Rejoignez-nous pour vivre des moments inoubliables.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Navigation</h4>
+                    <ul>
+                        <li><a href="#accueil">Accueil</a></li>
+                        <li><a href="#tournois">Tournois</a></li>
+                        <li><a href="#scores">Scores</a></li>
+                        <li><a href="#classement">Classement</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Derniers Tournois</h4>
+                    <div id="footerTournois"></div>
+                </div>
+                <div class="footer-section">
+                    <h4>Suivez-nous</h4>
+                    <div class="social-links">
+                        <a href="https://web.facebook.com/profile.php?id=61570058609584&locale=fr_FR" target="_blank" rel="noopener noreferrer" class="social-link facebook-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Taourirt-Ouablaa. Tous droits reserves.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===== MODALS ===== -->
+
+    <!-- Modal Admin Login -->
+    <div class="modal" id="adminLoginModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-lock"></i> Acces Administrateur</h3>
+                <button class="modal-close" onclick="closeModal('adminLoginModal')">&times;</button>
+            </div>
+            <form onsubmit="loginAdmin(event)">
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="adminPassword" required placeholder="Entrez le mot de passe">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <i class="fas fa-sign-in-alt"></i> Se connecter
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Tournoi -->
+    <div class="modal" id="tournoiModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-trophy"></i> <span id="tournoiModalTitle">Ajouter un Tournoi</span></h3>
+                <button class="modal-close" onclick="closeModal('tournoiModal')">&times;</button>
+            </div>
+            <form id="tournoiForm" onsubmit="saveTournoi(event)">
+                <input type="hidden" id="tournoiId">
+                <div class="form-group">
+                    <label>Nom du Tournoi *</label>
+                    <input type="text" id="tournoiName" required placeholder="Ex: Tournoi d'Ete 2026">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date de debut *</label>
+                        <input type="date" id="tournoiStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date de fin *</label>
+                        <input type="date" id="tournoiEndDate" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre d'equipes *</label>
+                        <input type="number" id="tournoiTeams" min="2" required placeholder="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Statut *</label>
+                        <select id="tournoiStatus" required>
+                            <option value="upcoming">A venir</option>
+                            <option value="active">En cours</option>
+                            <option value="finished">Termine</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="tournoiDescription" rows="3" placeholder="Description du tournoi..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Image du tournoi</label>
+                    <div class="image-upload" id="tournoiImageUpload">
+                        <input type="file" id="tournoiImage" accept="image/*" onchange="previewImage(this, 'tournoiImagePreview')">
+                        <div class="upload-placeholder" id="tournoiImagePreview">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Cliquez ou glissez une image</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('tournoiModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Score -->
+    <div class="modal" id="scoreModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-futbol"></i> <span id="scoreModalTitle">Ajouter un Match</span></h3>
+                <button class="modal-close" onclick="closeModal('scoreModal')">&times;</button>
+            </div>
+            <form id="scoreForm" onsubmit="saveScore(event)">
+                <input type="hidden" id="scoreId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equipe Domicile *</label>
+                        <input type="text" id="homeTeam" required placeholder="Nom de l'equipe">
+                    </div>
+                    <div class="form-group">
+                        <label>Score</label>
+                        <input type="number" id="homeScore" min="0" value="0">
+                    </div>
+                </div>
+                <div class="vs-divider"><span>VS</span></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equipe Exterieur *</label>
+                        <input type="text" id="awayTeam" required placeholder="Nom de l'equipe">
+                    </div>
+                    <div class="form-group">
+                        <label>Score</label>
+                        <input type="number" id="awayScore" min="0" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date et Heure *</label>
+                        <input type="datetime-local" id="matchDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Statut *</label>
+                        <select id="matchStatus" required>
+                            <option value="upcoming">A venir</option>
+                            <option value="live">En direct</option>
+                            <option value="finished">Termine</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tournoi</label>
+                    <select id="matchTournoi">
+                        <option value="">-- Selectionner un tournoi --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Journée</label>
+                    <input type="text" id="matchJournee" placeholder="Ex: J1, J2...">
+                </div>
+                <!-- Section Buteurs -->
+                <div class="form-group">
+                    <label><i class="fas fa-futbol"></i> Buteurs</label>
+                    <div class="buteurs-section">
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="buteurs-home-title">Domicile</div>
+                            <div class="player-chips" id="chips-home"></div>
+                            <div class="buteurs-list" id="buteursHomeList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterButeur('home')">
+                                <i class="fas fa-plus"></i> Ajouter buteur
+                            </button>
+                        </div>
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="buteurs-away-title">Exterieur</div>
+                            <div class="player-chips" id="chips-away"></div>
+                            <div class="buteurs-list" id="buteursAwayList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterButeur('away')">
+                                <i class="fas fa-plus"></i> Ajouter buteur
+                            </button>
+                        </div>
+                    </div>
+                    <datalist id="homeRosterDatalist"></datalist>
+                    <datalist id="awayRosterDatalist"></datalist>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-square"></i> Cartons</label>
+                    <div class="buteurs-section">
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="cartons-home-title">Domicile</div>
+                            <div class="buteurs-list" id="cartonsHomeList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterCarton('home')">
+                                <i class="fas fa-plus"></i> Ajouter carton
+                            </button>
+                        </div>
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="cartons-away-title">Exterieur</div>
+                            <div class="buteurs-list" id="cartonsAwayList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterCarton('away')">
+                                <i class="fas fa-plus"></i> Ajouter carton
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('scoreModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Actualite -->
+    <div class="modal" id="newsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-newspaper"></i> <span id="newsModalTitle">Ajouter une Actualite</span></h3>
+                <button class="modal-close" onclick="closeModal('newsModal')">&times;</button>
+            </div>
+            <form id="newsForm" onsubmit="saveNews(event)">
+                <input type="hidden" id="newsId">
+                <div class="form-group">
+                    <label>Titre *</label>
+                    <input type="text" id="newsTitle" required placeholder="Titre de l'actualite">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Categorie *</label>
+                        <select id="newsCategory" required>
+                            <option value="Tournoi">Tournoi</option>
+                            <option value="Infrastructure">Infrastructure</option>
+                            <option value="Evenement">Evenement</option>
+                            <option value="Resultat">Resultat</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="newsDate">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contenu *</label>
+                    <textarea id="newsContent" rows="5" required placeholder="Contenu de l'actualite..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Image</label>
+                    <div class="image-upload" id="newsImageUpload">
+                        <input type="file" id="newsImage" accept="image/*" onchange="previewImage(this, 'newsImagePreview')">
+                        <div class="upload-placeholder" id="newsImagePreview">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Cliquez ou glissez une image</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('newsModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Publier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Classement -->
+    <div class="modal" id="standingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> <span id="standingModalTitle">Modifier le Classement</span></h3>
+                <button class="modal-close" onclick="closeModal('standingModal')">&times;</button>
+            </div>
+            <form id="standingForm" onsubmit="saveStanding(event)">
+                <input type="hidden" id="standingGroup">
+                <input type="hidden" id="standingTeamIndex">
+                <div class="form-group">
+                    <label>Equipe</label>
+                    <input type="text" id="standingTeamName" readonly class="standing-team-readonly">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Matchs Joues (MJ)</label>
+                        <input type="number" id="standingMJ" min="0" value="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Victoires (V)</label>
+                        <input type="number" id="standingV" min="0" value="0" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nuls (N)</label>
+                        <input type="number" id="standingN" min="0" value="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Defaites (D)</label>
+                        <input type="number" id="standingD" min="0" value="0" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Buts Pour (BP)</label>
+                        <input type="number" id="standingBP" min="0" value="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Buts Contre (BC)</label>
+                        <input type="number" id="standingBC" min="0" value="0" required>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('standingModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Notifications -->
+    <div class="modal" id="notifModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-bell"></i> Notifications</h3>
+                <button class="modal-close" onclick="closeModal('notifModal')">&times;</button>
+            </div>
+            <div id="notifStatusBox" class="notif-status-box">
+                <div class="notif-icon-big"><i class="fas fa-bell-slash"></i></div>
+                <p id="notifStatusText">Activez les notifications pour recevoir les scores en temps reel !</p>
+                <button class="btn btn-primary btn-full" id="notifMainBtn" onclick="demanderPermissionNotif()">
+                    <i class="fas fa-bell"></i> Activer les notifications
+                </button>
+            </div>
+            <div class="notif-info">
+                <i class="fas fa-info-circle"></i>
+                Vous serez alerte des qu'un score est mis a jour ou qu'un match commence.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fiche Equipe -->
+    <div class="modal" id="teamModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-shield-alt"></i> <span id="teamModalTitle">Fiche Equipe</span></h3>
+                <button class="modal-close" onclick="closeModal('teamModal')">&times;</button>
+            </div>
+            <div id="teamModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Modal Photo Equipe (admin) -->
+    <div class="modal" id="teamPhotoModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-camera"></i> Photo de l'equipe</h3>
+                <button class="modal-close" onclick="closeModal('teamPhotoModal')">&times;</button>
+            </div>
+            <form id="teamPhotoForm" onsubmit="saveTeamPhoto(event)">
+                <input type="hidden" id="teamPhotoGroup">
+                <input type="hidden" id="teamPhotoIndex">
+                <div class="form-group">
+                    <label id="teamPhotoLabel">Equipe</label>
+                </div>
+                <div class="form-group">
+                    <label>Photo / Logo</label>
+                    <div class="image-upload">
+                        <input type="file" id="teamPhotoFile" accept="image/*" onchange="previewImage(this, 'teamPhotoPreview')">
+                        <div class="upload-placeholder" id="teamPhotoPreview">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Cliquez ou glissez une image</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('teamPhotoModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirmation</h3>
+                <button class="modal-close" onclick="closeModal('confirmModal')">&times;</button>
+            </div>
+            <p id="confirmMessage" class="confirm-message">Etes-vous sur ?</p>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Annuler</button>
+                <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-nav lightbox-prev" onclick="navigateLightbox(-1)">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="lightbox-content">
+            <img id="lightboxImage" src="" alt="">
+            <p class="lightbox-caption" id="lightboxCaption"></p>
+        </div>
+        <button class="lightbox-nav lightbox-next" onclick="navigateLightbox(1)">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <div class="lightbox-counter" id="lightboxCounter"></div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Logs Modal -->
+    <div class="modal" id="logsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-list"></i> Historique des modifications</h3>
+                <button class="modal-close" onclick="closeModal('logsModal')">&times;</button>
+            </div>
+            <div id="logsContainer" class="logs-container"></div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="clearLogs()">Vider</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roster Modal -->
+    <div class="modal" id="rosterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-users"></i> Gestion des joueurs</h3>
+                <button class="modal-close" onclick="closeModal('rosterModal')">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Equipe</label>
+                <input type="text" id="rosterTeamName" placeholder="Nom de l'équipe">
+            </div>
+            <div class="form-group">
+                <label>Ajouter un joueur</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="rosterPlayerInput" placeholder="Nom du joueur">
+                    <button class="btn btn-primary" onclick="addRosterPlayer()">Ajouter</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Joueurs</label>
+                <div id="rosterList" class="roster-list"></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeModal('rosterModal')">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll to Top -->
+    <button class="scroll-top" id="scrollTop" onclick="scrollToTop()">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- Modal Bracket Editor -->
+    <div class="modal" id="bracketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-sitemap"></i> Modifier le Bracket</h3>
+                <button class="modal-close" onclick="closeModal('bracketModal')">&times;</button>
+            </div>
+            <form id="bracketForm" onsubmit="saveBracket(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phase</label>
+                        <select id="bracketPhase" required>
+                            <option value="quarters">Quarts de finale</option>
+                            <option value="semis">Demi-finales</option>
+                            <option value="final">Finale</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Label (ex: 1A vs 2B)</label>
+                        <input type="text" id="bracketLabel" placeholder="1A vs 2B, DF1, FINALE...">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equipe 1</label>
+                        <input type="text" id="bracketTeam1" required placeholder="Equipe 1">
+                    </div>
+                    <div class="form-group">
+                        <label>Score</label>
+                        <input type="number" id="bracketScore1" min="0" value="0">
+                    </div>
+                </div>
+                <div class="vs-divider"><span>VS</span></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Equipe 2</label>
+                        <input type="text" id="bracketTeam2" required placeholder="Equipe 2">
+                    </div>
+                    <div class="form-group">
+                        <label>Score</label>
+                        <input type="number" id="bracketScore2" min="0" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Date &amp; Heure</label>
+                    <input type="datetime-local" id="bracketDate">
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="bracketStatus">
+                        <option value="upcoming">A venir</option>
+                        <option value="live">En direct</option>
+                        <option value="finished">Termine</option>
+                    </select>
+                </div>
+                <!-- Section Buteurs Bracket -->
+                <div class="form-group">
+                    <label><i class="fas fa-futbol"></i> Buteurs</label>
+                    <div class="buteurs-section">
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="bracket-buteurs-home-title">Equipe 1</div>
+                            <div class="player-chips" id="bracket-chips-home"></div>
+                            <div class="buteurs-list" id="bracketButeursHomeList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterBracketButeur('home')">
+                                <i class="fas fa-plus"></i> Ajouter buteur
+                            </button>
+                        </div>
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="bracket-buteurs-away-title">Equipe 2</div>
+                            <div class="player-chips" id="bracket-chips-away"></div>
+                            <div class="buteurs-list" id="bracketButeursAwayList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterBracketButeur('away')">
+                                <i class="fas fa-plus"></i> Ajouter buteur
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-square"></i> Cartons</label>
+                    <div class="buteurs-section">
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="bracket-cartons-home-title">Equipe 1</div>
+                            <div class="buteurs-list" id="bracketCartonsHomeList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterBracketCarton('home')">
+                                <i class="fas fa-plus"></i> Ajouter carton
+                            </button>
+                        </div>
+                        <div class="buteurs-col">
+                            <div class="buteurs-col-title" id="bracket-cartons-away-title">Equipe 2</div>
+                            <div class="buteurs-list" id="bracketCartonsAwayList"></div>
+                            <button type="button" class="btn-add-buteur" onclick="ajouterBracketCarton('away')">
+                                <i class="fas fa-plus"></i> Ajouter carton
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bracketModal')">Annuler</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
