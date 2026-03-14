@@ -1087,7 +1087,7 @@ function clearLogs() {
 
 // ===== RENDER SCORES =====
 let currentJournee = null;
-let currentStatusFilter = 'today';
+let currentStatusFilter = 'auto'; // sera defini dans initSmartFilter()
 let currentScoresSearch = '';
 let favoriteTeams = [];
 
@@ -1800,6 +1800,25 @@ function updateChips() {
 }
 
 // ===== SCORE FILTERS =====
+function initSmartFilter() {
+    const scores = getData('scores');
+    const today = getLocalToday();
+    const hasLive = scores.some(s => s.status === 'live');
+    const hasToday = scores.some(s => s.date && s.date.split('T')[0] === today);
+
+    if (hasLive || hasToday) {
+        currentStatusFilter = 'today';
+    } else {
+        currentStatusFilter = 'all';
+    }
+
+    // Mettre a jour le bouton actif
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === currentStatusFilter) btn.classList.add('active');
+    });
+}
+
 function initScoreFilters() {
     const filterBtns = document.querySelectorAll('.filter-btn');
     filterBtns.forEach(btn => {
@@ -2951,6 +2970,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initStatsAnimation();
         initAnimations();
         initScoreFilters();
+        initSmartFilter();
         initRechercheGlobale();
         initContactForm();
         renderTournois();
@@ -2971,6 +2991,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 2) Puis charger Firebase en arrière-plan
         initData().then(fromCloud => {
             if (fromCloud) {
+                initSmartFilter();
                 renderTournois();
                 renderJourneeNav();
                 renderScores();
@@ -2993,6 +3014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         initStatsAnimation();
         initAnimations();
         initScoreFilters();
+        initSmartFilter();
         initRechercheGlobale();
         initContactForm();
         renderTournois();
