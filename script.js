@@ -184,6 +184,7 @@ async function loadFromCloud() {
             }
             if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
                 setBracketData(bracket);
+                migrateBracketData();
                 renderBracket();
             }
         }).catch(() => {});
@@ -3011,6 +3012,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     demarrerPolling();
+    initPWA();
+    // Afficher la popup Finale Spotlight après un court délai
+    setTimeout(() => showFinaleSpotlight(), 1500);
     // Ajuster les marges apres le rendu complet
     requestAnimationFrame(() => ajusterMarginHero());
     window.addEventListener('resize', () => ajusterMarginHero());
@@ -3045,7 +3049,6 @@ function setBracketData(data) {
 
 // Auto-generate bracket from group standings (top 2 of each group)
 function generateDefaultBracket() {
-    // Bracket vide — l'admin entre manuellement les equipes qualifiees
     return {
         quarters: [
             { id: 'qf1', team1: '', team2: '', score1: 0, score2: 0, status: 'upcoming', label: '1A vs 2B' },
@@ -3054,11 +3057,11 @@ function generateDefaultBracket() {
             { id: 'qf4', team1: '', team2: '', score1: 0, score2: 0, status: 'upcoming', label: '1D vs 2C' }
         ],
         semis: [
-            { id: 'sf1', team1: '', team2: '', score1: 0, score2: 0, status: 'upcoming', label: 'DF1' },
-            { id: 'sf2', team1: '', team2: '', score1: 0, score2: 0, status: 'upcoming', label: 'DF2' }
+            { id: 'sf1', team1: 'ALLAGHENE', team2: 'QUIZRANE', score1: 2, score2: 2, status: 'finished', label: 'DF1', hasPenalties: true, pen1: 3, pen2: 2, buteurs: [], cartons: [] },
+            { id: 'sf2', team1: 'TAZMALT', team2: 'SEDDOUK', score1: 8, score2: 7, status: 'finished', label: 'DF2', hasPenalties: false, pen1: 0, pen2: 0, buteurs: [], cartons: [] }
         ],
         final: [
-            { id: 'f1', team1: '', team2: '', score1: 0, score2: 0, status: 'upcoming', label: 'FINALE' }
+            { id: 'f1', team1: 'ALLAGHENE', team2: 'TAZMALT', score1: 0, score2: 0, status: 'upcoming', label: 'FINALE' }
         ]
     };
 }
@@ -3067,29 +3070,46 @@ function getMatchWinner(m) {
     if (m.status !== 'finished') return '';
     const s1 = parseInt(m.score1) || 0;
     const s2 = parseInt(m.score2) || 0;
+    // Si tirs au but (penalties)
+    if (m.hasPenalties) {
+        const p1 = parseInt(m.pen1) || 0;
+        const p2 = parseInt(m.pen2) || 0;
+        if (p1 > p2) return m.team1;
+        if (p2 > p1) return m.team2;
+    }
     if (s1 > s2) return m.team1;
     if (s2 > s1) return m.team2;
     return m.team1; // tie goes to team1 (admin should set correctly)
 }
 
 function propagateWinners(data) {
-    const q = data.quarters || [];
-    const s = data.semis || [];
-    const f = data.final || [];
-    // QF1 winner + QF2 winner -> SF1
-    if (s[0]) {
-        s[0].team1 = getMatchWinner(q[0] || {}) || s[0].team1 || '';
-        s[0].team2 = getMatchWinner(q[1] || {}) || s[0].team2 || '';
-    }
-    // QF3 winner + QF4 winner -> SF2
-    if (s[1]) {
-        s[1].team1 = getMatchWinner(q[2] || {}) || s[1].team1 || '';
-        s[1].team2 = getMatchWinner(q[3] || {}) || s[1].team2 || '';
-    }
-    // SF winners -> Final
-    if (f[0]) {
-        f[0].team1 = getMatchWinner(s[0] || {}) || f[0].team1 || '';
-        f[0].team2 = getMatchWinner(s[1] || {}) || f[0].team2 || '';
+    // Propagation desactivee : l'admin saisit manuellement les equipes
+    // dans chaque phase via le bracket editor. Cela evite d'ecraser
+    // les modifications manuelles (ex: QUIZRANE vs ALLAGHENE, SEDDOUK vs TAZMALT).
+    // Les equipes sont conservees telles que saisies par l'admin.
+}
+
+function migrateBracketData() {
+    // Version de migration - incrementer pour forcer une nouvelle migration
+    const MIGRATION_VERSION = 4;
+    const currentVersion = parseInt(localStorage.getItem('to_bracket_version') || '0');
+    
+    if (currentVersion < MIGRATION_VERSION) {
+        // Forcer les resultats des demi-finales et finale
+        const def = generateDefaultBracket();
+        let data = getBracketData();
+        // Garder les quarts existants s'ils existent
+        if (!data.quarters || data.quarters.length === 0) {
+            data.quarters = def.quarters;
+        }
+        // Toujours ecraser les demis et finale avec les bonnes donnees
+        data.semis = def.semis;
+        data.final = def.final;
+        setBracketData(data);
+        localStorage.setItem('to_bracket_version', String(MIGRATION_VERSION));
+        console.log('[Bracket] Migration v' + MIGRATION_VERSION + ' appliquee: SF1=ALLAGHENE vs QUIZRANE (2-2, TAB 3-2), SF2=TAZMALT vs SEDDOUK (8-7), FINALE=ALLAGHENE vs TAZMALT');
+        // Pousser vers Firebase pour ne pas se faire ecraser
+        saveToCloud('bracket');
     }
 }
 
@@ -3102,6 +3122,8 @@ function renderBracket() {
         data = generateDefaultBracket();
         setBracketData(data);
     }
+    migrateBracketData();
+    data = getBracketData();
     propagateWinners(data);
 
     const q = data.quarters || [];
@@ -3113,17 +3135,17 @@ function renderBracket() {
     <div class="bracket-grid">
         <div class="bracket-round">
             <div class="bracket-round-label">Quarts de finale</div>
-            ${q.map(m => renderBracketMatch(m)).join('')}
+            ${q.map(m => renderBracketMatch(m, false)).join('')}
         </div>
         <div class="bracket-connectors" id="bracketConn1"></div>
         <div class="bracket-round">
             <div class="bracket-round-label">Demi-finales</div>
-            ${s.map(m => renderBracketMatch(m)).join('')}
+            ${s.map(m => renderBracketMatch(m, false)).join('')}
         </div>
         <div class="bracket-connectors" id="bracketConn2"></div>
-        <div class="bracket-round">
+        <div class="bracket-round bracket-round-final">
             <div class="bracket-round-label">Finale</div>
-            ${f.map(m => renderBracketMatch(m)).join('')}
+            ${f.map(m => renderBracketMatch(m, true)).join('')}
         </div>
         <div class="bracket-champion">
             <div class="bracket-trophy">🏆</div>
@@ -3199,6 +3221,7 @@ function renderBracketMatchCards(data) {
 function renderBracketCardLarge(m) {
     const isLive = m.status === 'live';
     const isFinished = m.status === 'finished';
+    const isFinale = (m.phaseName || '').toLowerCase().includes('finale');
     const s1 = parseInt(m.score1) || 0;
     const s2 = parseInt(m.score2) || 0;
     const dateStr = m.date ? new Date(m.date).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' }) : '';
@@ -3207,7 +3230,7 @@ function renderBracketCardLarge(m) {
     const awayScorers = Array.isArray(m.buteurs) ? m.buteurs.filter(b => b.equipe === m.team2) : [];
 
     return `
-    <div class="bk-card-large ${isLive ? 'bk-card-live' : ''} ${isFinished ? 'bk-card-finished' : ''}">
+    <div class="bk-card-large ${isLive ? 'bk-card-live' : ''} ${isFinished ? 'bk-card-finished' : ''} ${isFinale ? 'bk-card-finale' : ''}">
         <div class="bk-card-header">
             <span class="bk-phase-badge">${m.phaseName || ''}</span>
             ${isLive ? '<span class="bk-live-badge"><span class="live-pulse-dot"></span> EN DIRECT</span>' : ''}
@@ -3246,6 +3269,11 @@ function renderBracketCardSmall(m) {
     const isFinished = m.status === 'finished';
     const s1 = parseInt(m.score1) || 0;
     const s2 = parseInt(m.score2) || 0;
+    const hasPen = !!m.hasPenalties;
+    const pen1m = parseInt(m.pen1) || 0;
+    const pen2m = parseInt(m.pen2) || 0;
+    const w1 = isFinished && (hasPen ? pen1m > pen2m : s1 > s2);
+    const w2 = isFinished && (hasPen ? pen2m > pen1m : s2 > s1);
     const heure = m.date ? new Date(m.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
     const dateStr = m.date ? new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '';
     const statusCls = isLive ? 'bk-mini-live' : isFinished ? 'bk-mini-finished' : 'bk-mini-upcoming';
@@ -3258,19 +3286,20 @@ function renderBracketCardSmall(m) {
             ${!isLive && !isFinished && dateStr ? `<span class="bk-mini-date">${dateStr} · ${heure}</span>` : ''}
         </div>
         <div class="bk-mini-teams">
-            <div class="bk-mini-row ${isFinished && s1 > s2 ? 'bk-mini-winner' : ''}">
+            <div class="bk-mini-row ${w1 ? 'bk-mini-winner' : ''}">
                 <span class="bk-mini-name">${m.team1 || 'TBD'}</span>
                 <span class="bk-mini-score">${m.status !== 'upcoming' ? s1 : '-'}</span>
             </div>
-            <div class="bk-mini-row ${isFinished && s2 > s1 ? 'bk-mini-winner' : ''}">
+            <div class="bk-mini-row ${w2 ? 'bk-mini-winner' : ''}">
                 <span class="bk-mini-name">${m.team2 || 'TBD'}</span>
                 <span class="bk-mini-score">${m.status !== 'upcoming' ? s2 : '-'}</span>
             </div>
         </div>
+        ${hasPen && isFinished ? `<div class="bk-mini-pen">TAB: ${pen1m} - ${pen2m}</div>` : ''}
     </div>`;
 }
 
-function renderBracketMatch(m) {
+function renderBracketMatch(m, isFinal) {
     const s1 = parseInt(m.score1) || 0;
     const s2 = parseInt(m.score2) || 0;
     const isFinished = m.status === 'finished';
@@ -3304,20 +3333,90 @@ function renderBracketMatch(m) {
         </div>`;
     }
 
+    const hasPen = !!m.hasPenalties;
+    const pen1 = parseInt(m.pen1) || 0;
+    const pen2 = parseInt(m.pen2) || 0;
+    const penHtml = hasPen && isFinished ? `<div class="bracket-pen-badge">TAB: ${pen1} - ${pen2}</div>` : '';
+
+    // Recalculate winner with penalties
+    const realWinner1 = isFinished && (hasPen ? pen1 > pen2 : s1 > s2);
+    const realWinner2 = isFinished && (hasPen ? pen2 > pen1 : s2 > s1);
+
+    // Standard bracket match (quarts/demi)
+    if (!isFinal) {
+        return `
+        <div class="bracket-match" data-id="${m.id}" style="margin-bottom:0.8rem;">
+            ${m.label ? `<div class="bracket-match-label ${isLive ? 'is-live' : ''}">${isLive ? '● EN DIRECT' : m.label}</div>` : ''}
+            ${dateHtml}
+            <div class="bracket-match-team ${realWinner1 ? 'winner' : ''}">
+                <span class="bracket-team-name ${isTbd1 ? 'tbd' : ''}">${m.team1 || 'A determiner'}</span>
+                <span class="bracket-team-score">${m.status !== 'upcoming' ? s1 : '-'}</span>
+            </div>
+            <div class="bracket-match-team ${realWinner2 ? 'winner' : ''}">
+                <span class="bracket-team-name ${isTbd2 ? 'tbd' : ''}">${m.team2 || 'A determiner'}</span>
+                <span class="bracket-team-score">${m.status !== 'upcoming' ? s2 : '-'}</span>
+            </div>
+            ${penHtml}
+            ${buteursHtml}
+            ${isAdmin ? `<button class="btn btn-small btn-primary" style="width:100%;border-radius:0;padding:0.3rem;" onclick="editBracketMatch('${m.id}')"><i class="fas fa-edit"></i> Modifier</button>` : ''}
+        </div>`;
+    }
+
+    // ===== FINALE - STYLE PRO SPECTACULAIRE =====
+    const champion = isFinished ? (realWinner1 ? m.team1 : (realWinner2 ? m.team2 : '')) : '';
+    const heureStr = m.date ? new Date(m.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const dateStrFull = m.date ? new Date(m.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '';
+
     return `
-    <div class="bracket-match" data-id="${m.id}" style="margin-bottom:0.8rem;">
-        ${m.label ? `<div class="bracket-match-label ${isLive ? 'is-live' : ''}">${isLive ? '● EN DIRECT' : m.label}</div>` : ''}
-        ${dateHtml}
-        <div class="bracket-match-team ${winner1 ? 'winner' : ''}">
-            <span class="bracket-team-name ${isTbd1 ? 'tbd' : ''}">${m.team1 || 'A determiner'}</span>
-            <span class="bracket-team-score">${m.status !== 'upcoming' ? s1 : '-'}</span>
+    <div class="bracket-match finale-match ${isLive ? 'finale-live' : ''} ${isFinished ? 'finale-finished' : ''}" data-id="${m.id}">
+        <div class="finale-header">
+            <div class="finale-badge">
+                <i class="fas fa-trophy"></i> GRANDE FINALE
+            </div>
+            ${isLive ? '<div class="finale-live-badge"><span class="live-pulse-dot"></span> EN DIRECT</div>' : ''}
+            ${isFinished ? '<div class="finale-ft-badge">TERMINE</div>' : ''}
+            ${dateStrFull ? `<div class="finale-date"><i class="far fa-calendar-alt"></i> ${dateStrFull}${heureStr ? ' · ' + heureStr : ''}</div>` : ''}
         </div>
-        <div class="bracket-match-team ${winner2 ? 'winner' : ''}">
-            <span class="bracket-team-name ${isTbd2 ? 'tbd' : ''}">${m.team2 || 'A determiner'}</span>
-            <span class="bracket-team-score">${m.status !== 'upcoming' ? s2 : '-'}</span>
+        <div class="finale-body">
+            <div class="finale-team finale-team-left ${realWinner1 ? 'finale-winner' : ''} ${isFinished && !realWinner1 ? 'finale-loser' : ''}">
+                <div class="finale-team-logo"><i class="fas fa-shield-alt"></i></div>
+                <div class="finale-team-name ${isTbd1 ? 'tbd' : ''}">${m.team1 || 'A determiner'}</div>
+                ${realWinner1 ? '<div class="finale-crown"><i class="fas fa-crown"></i></div>' : ''}
+            </div>
+            <div class="finale-score-box">
+                ${m.status === 'upcoming'
+                    ? `<div class="finale-vs">VS</div>${heureStr ? `<div class="finale-time">${heureStr}</div>` : ''}`
+                    : `<div class="finale-score ${isLive ? 'finale-score-live' : ''}">${s1} <span class="finale-score-sep">-</span> ${s2}</div>`
+                }
+                ${isLive ? '<div class="finale-live-indicator"><span class="live-pulse-dot"></span> En cours</div>' : ''}
+                ${hasPen && isFinished ? `<div class="finale-pen-badge">TAB: ${pen1} - ${pen2}</div>` : ''}
+            </div>
+            <div class="finale-team finale-team-right ${realWinner2 ? 'finale-winner' : ''} ${isFinished && !realWinner2 ? 'finale-loser' : ''}">
+                ${realWinner2 ? '<div class="finale-crown"><i class="fas fa-crown"></i></div>' : ''}
+                <div class="finale-team-name ${isTbd2 ? 'tbd' : ''}">${m.team2 || 'A determiner'}</div>
+                <div class="finale-team-logo"><i class="fas fa-shield-alt"></i></div>
+            </div>
         </div>
-        ${buteursHtml}
-        ${isAdmin ? `<button class="btn btn-small btn-primary" style="width:100%;border-radius:0;padding:0.3rem;" onclick="editBracketMatch('${m.id}')"><i class="fas fa-edit"></i> Modifier</button>` : ''}
+        ${showScorers ? `
+        <div class="finale-scorers">
+            <div class="finale-scorers-col finale-scorers-left">
+                ${homeScorers.map(b => `<div class="finale-scorer"><i class="fas fa-futbol"></i> ${b.nom}${(parseInt(b.buts)||1)>1?' <span class="finale-scorer-x">x'+b.buts+'</span>':''}</div>`).join('') || ''}
+            </div>
+            <div class="finale-scorers-divider"></div>
+            <div class="finale-scorers-col finale-scorers-right">
+                ${awayScorers.map(b => `<div class="finale-scorer">${b.nom}${(parseInt(b.buts)||1)>1?' <span class="finale-scorer-x">x'+b.buts+'</span>':''} <i class="fas fa-futbol"></i></div>`).join('') || ''}
+            </div>
+        </div>` : ''}
+        ${isFinished && champion ? `
+        <div class="finale-champion-banner">
+            <div class="finale-champion-trophy">🏆</div>
+            <div class="finale-champion-text">
+                <div class="finale-champion-label">CHAMPION DU TOURNOI</div>
+                <div class="finale-champion-name">${champion}</div>
+            </div>
+            <div class="finale-champion-trophy">🏆</div>
+        </div>` : ''}
+        ${isAdmin ? `<button class="btn btn-small btn-primary" style="width:100%;border-radius:0 0 12px 12px;padding:0.4rem;" onclick="editBracketMatch('${m.id}')"><i class="fas fa-edit"></i> Modifier</button>` : ''}
     </div>`;
 }
 
@@ -3407,6 +3506,15 @@ function editBracketMatch(id) {
     document.getElementById('bracketScore2').value = match.score2 || 0;
     document.getElementById('bracketStatus').value = match.status || 'upcoming';
     document.getElementById('bracketDate').value = match.date || '';
+    // Penalties
+    document.getElementById('bracketHasPenalties').checked = !!match.hasPenalties;
+    document.getElementById('bracketPen1').value = match.pen1 || 0;
+    document.getElementById('bracketPen2').value = match.pen2 || 0;
+    togglePenaltyFields();
+    showPenaltySectionIfFinished();
+    // Update penalty labels
+    document.getElementById('penLabel1').textContent = 'Penalties ' + (match.team1 || 'Equipe 1');
+    document.getElementById('penLabel2').textContent = 'Penalties ' + (match.team2 || 'Equipe 2');
     // Update bracket player chips
     updateBracketChips(match.team1 || '', match.team2 || '');
     // Populate visual buteurs
@@ -3450,7 +3558,10 @@ async function saveBracket(e) {
         date: document.getElementById('bracketDate').value || '',
         buteurs: lireBracketButeursFormulaire(),
         cartons: lireBracketCartonsFormulaire(),
-        label: document.getElementById('bracketLabel').value || ''
+        label: document.getElementById('bracketLabel').value || '',
+        hasPenalties: document.getElementById('bracketHasPenalties').checked,
+        pen1: parseInt(document.getElementById('bracketPen1').value) || 0,
+        pen2: parseInt(document.getElementById('bracketPen2').value) || 0
     };
 
     if (!data[phase]) data[phase] = [];
@@ -3850,6 +3961,240 @@ function votePronostic(matchId, choice) {
     renderPronostics();
 }
 
+// ===== PENALTY FIELDS =====
+function togglePenaltyFields() {
+    const checked = document.getElementById('bracketHasPenalties').checked;
+    document.getElementById('penaltyFields').style.display = checked ? 'grid' : 'none';
+}
+
+function showPenaltySectionIfFinished() {
+    const status = document.getElementById('bracketStatus').value;
+    const section = document.getElementById('penaltySection');
+    if (section) section.style.display = (status === 'finished') ? 'block' : 'none';
+}
+
+// Listen to status change to show/hide penalty section
+document.addEventListener('DOMContentLoaded', () => {
+    const statusSelect = document.getElementById('bracketStatus');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', showPenaltySectionIfFinished);
+    }
+    // Also update penalty labels when team names change
+    const bt1 = document.getElementById('bracketTeam1');
+    const bt2 = document.getElementById('bracketTeam2');
+    if (bt1) bt1.addEventListener('input', () => { document.getElementById('penLabel1').textContent = 'Penalties ' + (bt1.value || 'Equipe 1'); });
+    if (bt2) bt2.addEventListener('input', () => { document.getElementById('penLabel2').textContent = 'Penalties ' + (bt2.value || 'Equipe 2'); });
+});
+
+// ===== FINALE SPOTLIGHT POPUP =====
+function showFinaleSpotlight() {
+    const data = getBracketData();
+    const f = data.final || [];
+    if (f.length === 0) return;
+
+    // Check if there's a finale match with at least one team set
+    const finale = f[0];
+    if (!finale || (!finale.team1 && !finale.team2)) return;
+
+    // Don't show if user already dismissed it this session (based on teams + status)
+    const dismissKey = 'fsp_' + (finale.team1||'') + '_' + (finale.team2||'') + '_' + finale.status;
+    if (sessionStorage.getItem(dismissKey)) return;
+
+    const s1 = parseInt(finale.score1) || 0;
+    const s2 = parseInt(finale.score2) || 0;
+    const isFinished = finale.status === 'finished';
+    const isLive = finale.status === 'live';
+    const isUpcoming = finale.status === 'upcoming';
+    const hasPen = !!finale.hasPenalties;
+    const pen1 = parseInt(finale.pen1) || 0;
+    const pen2 = parseInt(finale.pen2) || 0;
+    const winner = isFinished ? (hasPen ? (pen1 > pen2 ? finale.team1 : finale.team2) : (s1 > s2 ? finale.team1 : finale.team2)) : '';
+
+    const dateStr = finale.date ? new Date(finale.date).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '';
+    const heureStr = finale.date ? new Date(finale.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+    // Buteurs
+    const homeScorers = Array.isArray(finale.buteurs) ? finale.buteurs.filter(b => b.equipe === finale.team1) : [];
+    const awayScorers = Array.isArray(finale.buteurs) ? finale.buteurs.filter(b => b.equipe === finale.team2) : [];
+
+    let html = `
+    <div class="fsp-container ${isLive ? 'fsp-live' : ''} ${isFinished ? 'fsp-finished' : ''}">
+        <div class="fsp-particles"></div>
+        <div class="fsp-header">
+            <div class="fsp-trophy-icon">🏆</div>
+            <div class="fsp-title">${isFinished ? 'RÉSULTAT DE LA FINALE' : isLive ? 'FINALE EN DIRECT !' : 'GRANDE FINALE'}</div>
+            <div class="fsp-subtitle">Tournoi Ramadan 2026 - Taourirt-Ouablaa</div>
+            ${dateStr ? `<div class="fsp-date">${dateStr}${heureStr ? ' · ' + heureStr : ''}</div>` : ''}
+        </div>
+        <div class="fsp-match">
+            <div class="fsp-team fsp-team-left ${isFinished && winner === finale.team1 ? 'fsp-winner' : ''}">
+                <div class="fsp-team-shield"><i class="fas fa-shield-alt"></i></div>
+                <div class="fsp-team-name">${finale.team1 || 'A déterminer'}</div>
+                ${isFinished && winner === finale.team1 ? '<div class="fsp-crown">👑</div>' : ''}
+            </div>
+            <div class="fsp-score-block">
+                ${isUpcoming
+                    ? `<div class="fsp-vs">VS</div>${heureStr ? `<div class="fsp-kickoff">${heureStr}</div>` : ''}`
+                    : `<div class="fsp-score">${s1} - ${s2}</div>`}
+                ${hasPen && isFinished ? `<div class="fsp-penalties">TAB: ${pen1} - ${pen2}</div>` : ''}
+                ${isLive ? '<div class="fsp-live-dot"><span class="live-pulse-dot"></span> En cours</div>' : ''}
+            </div>
+            <div class="fsp-team fsp-team-right ${isFinished && winner === finale.team2 ? 'fsp-winner' : ''}">
+                ${isFinished && winner === finale.team2 ? '<div class="fsp-crown">👑</div>' : ''}
+                <div class="fsp-team-name">${finale.team2 || 'A déterminer'}</div>
+                <div class="fsp-team-shield"><i class="fas fa-shield-alt"></i></div>
+            </div>
+        </div>
+        ${(homeScorers.length || awayScorers.length) ? `
+        <div class="fsp-scorers">
+            <div class="fsp-scorers-col fsp-scorers-left">
+                ${homeScorers.map(b => `<div class="fsp-scorer"><i class="fas fa-futbol"></i> ${b.nom}${(parseInt(b.buts)||1)>1?' x'+b.buts:''}</div>`).join('')}
+            </div>
+            <div class="fsp-scorers-sep"></div>
+            <div class="fsp-scorers-col fsp-scorers-right">
+                ${awayScorers.map(b => `<div class="fsp-scorer">${b.nom}${(parseInt(b.buts)||1)>1?' x'+b.buts:''} <i class="fas fa-futbol"></i></div>`).join('')}
+            </div>
+        </div>` : ''}
+        ${isFinished && winner ? `
+        <div class="fsp-champion">
+            <div class="fsp-confetti">🎉</div>
+            <div class="fsp-champion-label">CHAMPION DU TOURNOI</div>
+            <div class="fsp-champion-name">${winner}</div>
+            <div class="fsp-confetti">🎊</div>
+        </div>` : ''}
+        <button class="fsp-cta" onclick="closeFinaleSpotlight(); window.location.hash='#bracket';">
+            <i class="fas fa-sitemap"></i> Voir le bracket complet
+        </button>
+    </div>`;
+
+    const overlay = document.getElementById('finaleSpotlight');
+    const content = document.getElementById('finaleSpotlightContent');
+    if (overlay && content) {
+        content.innerHTML = html;
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeFinaleSpotlight() {
+    const overlay = document.getElementById('finaleSpotlight');
+    if (overlay) {
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    // Mark as dismissed this session
+    const data = getBracketData();
+    const f = data.final || [];
+    if (f[0]) {
+        const dismissKey = 'fsp_' + (f[0].team1||'') + '_' + (f[0].team2||'') + '_' + f[0].status;
+        sessionStorage.setItem(dismissKey, '1');
+    }
+}
+
+// ===== PWA - SERVICE WORKER & INSTALL =====
+let deferredInstallPrompt = null;
+
+function initPWA() {
+    // Enregistrer le Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then((reg) => {
+                console.log('[PWA] Service Worker enregistré ✓', reg.scope);
+                // Vérifier les mises à jour
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'activated') {
+                            showToast('Mise à jour disponible ! Rechargez la page.', 'info');
+                        }
+                    });
+                });
+            })
+            .catch((err) => console.log('[PWA] Erreur SW:', err));
+    }
+
+    // Intercepter l'événement d'installation
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        showInstallBanner();
+    });
+
+    // Détection si déjà installé
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        hideInstallBanner();
+        showToast('Application installée avec succès ! 📱', 'success');
+    });
+
+    // Vérifier si on est en mode standalone (déjà installé)
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        console.log('[PWA] Mode application détecté');
+    }
+}
+
+function showInstallBanner() {
+    // Ne pas afficher si déjà fermé récemment
+    const dismissed = localStorage.getItem('pwa_banner_dismissed');
+    if (dismissed && (Date.now() - parseInt(dismissed)) < 86400000) return; // 24h
+
+    let banner = document.getElementById('pwaBanner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'pwaBanner';
+        banner.className = 'pwa-banner';
+        banner.innerHTML = `
+            <div class="pwa-banner-content">
+                <div class="pwa-banner-icon">
+                    <img src="logo.png" alt="Logo" width="40" height="40">
+                </div>
+                <div class="pwa-banner-text">
+                    <strong>Installer l'application</strong>
+                    <span>Accédez au tournoi directement depuis votre écran d'accueil !</span>
+                </div>
+                <div class="pwa-banner-actions">
+                    <button class="pwa-btn-install" onclick="installPWA()">
+                        <i class="fas fa-download"></i> Installer
+                    </button>
+                    <button class="pwa-btn-close" onclick="dismissInstallBanner()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(banner);
+        // Animation entrée
+        requestAnimationFrame(() => banner.classList.add('visible'));
+    }
+}
+
+function hideInstallBanner() {
+    const banner = document.getElementById('pwaBanner');
+    if (banner) {
+        banner.classList.remove('visible');
+        setTimeout(() => banner.remove(), 400);
+    }
+}
+
+function dismissInstallBanner() {
+    localStorage.setItem('pwa_banner_dismissed', String(Date.now()));
+    hideInstallBanner();
+}
+
+async function installPWA() {
+    if (!deferredInstallPrompt) {
+        showToast('Utilisez le menu de votre navigateur pour installer l\'app', 'info');
+        return;
+    }
+    deferredInstallPrompt.prompt();
+    const result = await deferredInstallPrompt.userChoice;
+    if (result.outcome === 'accepted') {
+        showToast('Installation en cours... 📱', 'success');
+    }
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+}
+
 // ===== GLOBAL HANDLERS (INLINE ATTRIBUTES SUPPORT) =====
 // Assure que les onclick inline fonctionnent même si le bundling change la portée
 window.toggleDarkMode = toggleDarkMode;
@@ -3857,3 +4202,8 @@ window.toggleAdminMode = toggleAdminMode;
 window.toggleNotifications = toggleNotifications;
 window.openLogs = openLogs;
 window.scrollToTop = scrollToTop;
+window.closeFinaleSpotlight = closeFinaleSpotlight;
+window.installPWA = installPWA;
+window.dismissInstallBanner = dismissInstallBanner;
+window.togglePenaltyFields = togglePenaltyFields;
+window.showPenaltySectionIfFinished = showPenaltySectionIfFinished;

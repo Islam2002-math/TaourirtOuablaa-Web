@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Taourirt Tournoi">
+    <meta name="theme-color" content="#16A34A">
+    <meta name="description" content="Suivez les matchs, scores et classement du tournoi de football Taourirt-Ouablaa en temps réel.">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.png">
     <title>Taourirt-Ouablaa - Tournois de Football</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -814,6 +821,15 @@
         </div>
     </div>
 
+    <!-- Finale Spotlight Modal -->
+    <div class="finale-spotlight-overlay" id="finaleSpotlight" style="display:none;">
+        <div class="finale-spotlight-content" id="finaleSpotlightContent">
+        </div>
+        <button class="finale-spotlight-close" onclick="closeFinaleSpotlight()">
+            <i class="fas fa-times"></i> Fermer
+        </button>
+    </div>
+
     <!-- Scroll to Top -->
     <button class="scroll-top" id="scrollTop" onclick="scrollToTop()">
         <i class="fas fa-chevron-up"></i>
@@ -873,6 +889,26 @@
                         <option value="live">En direct</option>
                         <option value="finished">Termine</option>
                     </select>
+                </div>
+                <!-- Tirs au but (penalties) -->
+                <div class="form-group" id="penaltySection" style="display:none;">
+                    <label><i class="fas fa-bullseye"></i> Tirs au but (TAB)</label>
+                    <div class="penalty-toggle">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="bracketHasPenalties" onchange="togglePenaltyFields()">
+                            <span>Match décidé aux tirs au but</span>
+                        </label>
+                    </div>
+                    <div class="form-row" id="penaltyFields" style="display:none;">
+                        <div class="form-group">
+                            <label id="penLabel1">Penalties Equipe 1</label>
+                            <input type="number" id="bracketPen1" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label id="penLabel2">Penalties Equipe 2</label>
+                            <input type="number" id="bracketPen2" min="0" value="0">
+                        </div>
+                    </div>
                 </div>
                 <!-- Section Buteurs Bracket -->
                 <div class="form-group">

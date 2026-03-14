@@ -1,0 +1,27 @@
+{
+  "name": "Taourirt-Ouablaa - Tournoi de Football",
+  "short_name": "Taourirt Tournoi",
+  "description": "Suivez les matchs, scores et classement du tournoi de football Taourirt-Ouablaa en temps réel.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0C10",
+  "theme_color": "#16A34A",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "entertainment"],
+  "lang": "fr",
+  "dir": "ltr"
+}
