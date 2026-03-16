@@ -279,14 +279,19 @@ async function saveToCloud(section) {
     }
 }
 
-// Sauvegarde auto après chaque modification admin
+// Sauvegarde auto après chaque modification admin (avec retry)
 async function syncAfterChange(section) {
     if (!isAdmin) return;
-    const ok = await saveToCloud(section);
+    let ok = await saveToCloud(section);
+    if (!ok) {
+        // Retry once after 2s
+        await new Promise(r => setTimeout(r, 2000));
+        ok = await saveToCloud(section);
+    }
     if (ok) {
-        showToast('Modifications sauvegardées en ligne ✓', 'success');
+        showToast('Données en ligne ✓ (visible par tous)', 'success');
     } else {
-        showToast('Sauvegardé localement (cloud indisponible)', 'info');
+        showToast('⚠ Échec sync cloud — sauvegardé localement. Réessayez avec le bouton Synchroniser.', 'error');
     }
 }
 
@@ -1692,8 +1697,19 @@ async function saveScore(e) {
     renderStandings();
     renderButeurs();
     refreshStats();
-    await syncAfterChange('scores');
-    await syncAfterChange('standings');
+    initHeroCards();
+    // Sync scores + standings together
+    if (isAdmin) {
+        const ok1 = await saveToCloud('scores');
+        const ok2 = await saveToCloud('standings');
+        if (ok1 && ok2) {
+            showToast('Scores + classement en ligne ✓ (visible par tous)', 'success');
+        } else if (!ok1 && !ok2) {
+            showToast('⚠ Échec sync cloud — réessayez avec Synchroniser', 'error');
+        } else {
+            showToast('⚠ Sync partielle — cliquez Synchroniser pour tout envoyer', 'error');
+        }
+    }
 }
 
 function editScore(id) {
@@ -1750,9 +1766,14 @@ function deleteScore(id) {
         renderStandings();
         renderButeurs();
         refreshStats();
+        initHeroCards();
         showToast('Match supprimé', 'info');
-        await syncAfterChange('scores');
-        await syncAfterChange('standings');
+        if (isAdmin) {
+            const ok1 = await saveToCloud('scores');
+            const ok2 = await saveToCloud('standings');
+            if (ok1 && ok2) showToast('Suppression en ligne ✓', 'success');
+            else showToast('⚠ Sync cloud échouée — cliquez Synchroniser', 'error');
+        }
     });
 }
 
@@ -2639,19 +2660,15 @@ function demarrerPolling() {
             const lastUpdate = await firebaseGet('/lastUpdate');
             if (lastUpdate && lastUpdate !== lastUpdateHash) {
                 if (lastUpdateHash !== '') {
-                    // Données ont changé — recharger
+                    // Données ont changé — recharger tout
                     const loaded = await loadFromCloud();
                     if (loaded) {
-                        renderScores();
-                        renderStandings();
-                        renderButeurs();
-                        renderBracket();
+                        renderAll();
 
                         // Notifier si permission accordée
                         if (Notification.permission === 'granted') {
-                            envoyerNotification('🔄 Mise à jour des scores', 'Les résultats ont été mis à jour !');
+                            envoyerNotification('Mise a jour des scores', 'Les resultats ont ete mis a jour !');
                         }
-                        // Badge cloche visible
                         const badge = document.getElementById('notifBadge');
                         if (badge) { badge.style.display = 'flex'; }
                     }
@@ -2659,14 +2676,18 @@ function demarrerPolling() {
                 lastUpdateHash = lastUpdate;
             }
         } catch(e) {}
-    }, 30000); // toutes les 30 secondes
+    }, 15000); // toutes les 15 secondes pour plus de réactivité
 
-    // Pause polling quand l'onglet est cache (economie de batterie/reseau)
+    // Pause polling quand l'onglet est cache, refresh immédiat au retour
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             clearInterval(pollingInterval);
             pollingInterval = null;
         } else {
+            // Refresh immédiat au retour sur l'onglet
+            loadFromCloud().then(loaded => {
+                if (loaded) renderAll();
+            });
             demarrerPolling();
         }
     });
