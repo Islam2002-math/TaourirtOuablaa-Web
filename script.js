@@ -1,10 +1,19 @@
 // ===== CONFIGURATION =====
-// Password stored as SHA-256 hash (not plaintext)
 const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
-// Firebase Realtime Database URL
-const FIREBASE_URL = 'https://taourirt-tournoi-default-rtdb.europe-west1.firebasedatabase.app';
-// Cle secrete pour proteger les ecritures admin (Firebase Database Secret)
-const FIREBASE_SECRET = 'szbs4qVFjyeCOlNAfaZYwdRHeNaw7vAruDsmG9EL';
+
+// Supabase Configuration
+const SUPABASE_URL = 'https://ovanwwkubcgvrkjxqmfu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_BA-BOwfzVNqNldduusYbuw_Ih_1n5ac';
+
+// Tables Supabase
+const TABLES = {
+    tournois: 'tournois',
+    scores: 'scores',
+    standings: 'standings',
+    gallery: 'gallery',
+    news: 'news',
+    bracket: 'bracket'
+};
 
 // SHA-256 hash function for password verification
 async function sha256(message) {
@@ -148,28 +157,89 @@ function firebaseToArray(data) {
     return null;
 }
 
-async function firebasePut(path, data) {
+// ===== SUPABASE FUNCTIONS =====
+
+async function supabaseGet(table) {
     try {
-        const url = FIREBASE_URL + path + '.json' + (FIREBASE_SECRET ? '?auth=' + FIREBASE_SECRET : '');
-        const res = await fetch(url, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/${table}?select=*`,
+            {
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                },
+                signal: controller.signal
+            }
+        );
+        clearTimeout(timeout);
+        if (res.ok) return await res.json();
+    } catch (e) {
+        console.log('Supabase get error:', e);
+    }
+    return null;
+}
+
+async function supabasePut(table, data) {
+    try {
+        // First try to delete existing records
+        await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+            method: 'DELETE',
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+            }
         });
+        
+        // Then insert new data
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/${table}`,
+            {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: JSON.stringify(data)
+            }
+        );
         return res.ok;
     } catch (e) {
+        console.log('Supabase put error:', e);
         return false;
     }
 }
 
+// Legacy Firebase functions (now use Supabase)
+async function firebasePut(path, data) {
+    // Map path to table name
+    const tableName = path.replace('/', '');
+    if (TABLES[tableName]) {
+        // For array data, we need to handle it differently
+        if (Array.isArray(data)) {
+            // Delete existing and insert new
+            await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
+                method: 'DELETE',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                }
+            });
+        }
+        return await supabasePut(tableName, data);
+    }
+    return false;
+}
+
 async function firebaseGet(path) {
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(FIREBASE_URL + path + '.json', { signal: controller.signal });
-        clearTimeout(timeout);
-        if (res.ok) return await res.json();
-    } catch (e) {}
+    const tableName = path.replace('/', '');
+    if (TABLES[tableName]) {
+        return await supabaseGet(tableName);
+    }
     return null;
 }
 
@@ -177,27 +247,21 @@ async function loadFromCloud() {
     try {
         // Load critical data first (scores, standings, tournois)
         const [rawTournois, rawScores, standings, lastUpdate] = await Promise.all([
-            firebaseGet('/tournois'),
-            firebaseGet('/scores'),
-            firebaseGet('/standings'),
-            firebaseGet('/lastUpdate')
+            supabaseGet('tournois'),
+            supabaseGet('scores'),
+            supabaseGet('standings'),
+            supabaseGet('lastUpdate')
         ]);
 
-        // Firebase converts arrays to objects - convert them back
-        const tournois = firebaseToArray(rawTournois);
-        const scores = firebaseToArray(rawScores);
-        // For scores, also convert nested buteurs/cartons arrays
-        if (scores) {
-            scores.forEach(s => {
-                if (s.buteurs && !Array.isArray(s.buteurs)) s.buteurs = firebaseToArray(s.buteurs) || [];
-                if (s.cartons && !Array.isArray(s.cartons)) s.cartons = firebaseToArray(s.cartons) || [];
-            });
-        }
+        // Process arrays
+        const tournois = Array.isArray(rawTournois) ? rawTournois : [];
+        const scores = Array.isArray(rawScores) ? rawScores : [];
+        
         // For standings, convert each group's teams array
         if (standings && typeof standings === 'object') {
             Object.keys(standings).forEach(group => {
                 if (standings[group] && !Array.isArray(standings[group])) {
-                    standings[group] = firebaseToArray(standings[group]) || [];
+                    standings[group] = standings[group] || [];
                 }
             });
         }
@@ -217,30 +281,18 @@ async function loadFromCloud() {
 
         // Defer non-critical data (gallery, news, bracket) - load in background
         Promise.all([
-            firebaseGet('/news'),
-            firebaseGet('/gallery'),
-            firebaseGet('/bracket')
+            supabaseGet('news'),
+            supabaseGet('gallery'),
+            supabaseGet('bracket')
         ]).then(([rawNews, rawGallery, bracket]) => {
-            const news = firebaseToArray(rawNews);
-            const gallery = firebaseToArray(rawGallery);
+            const news = Array.isArray(rawNews) ? rawNews : [];
+            const gallery = Array.isArray(rawGallery) ? rawGallery : [];
             if (news && news.length > 0) setData('news', news);
             if (gallery && gallery.length > 0) {
                 setData('gallery', gallery);
                 renderGallery();
             }
             if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
-                // Convert bracket arrays too
-                ['quarters', 'semis', 'final'].forEach(phase => {
-                    if (bracket[phase] && !Array.isArray(bracket[phase])) {
-                        bracket[phase] = firebaseToArray(bracket[phase]) || [];
-                    }
-                    if (Array.isArray(bracket[phase])) {
-                        bracket[phase].forEach(m => {
-                            if (m.buteurs && !Array.isArray(m.buteurs)) m.buteurs = firebaseToArray(m.buteurs) || [];
-                            if (m.cartons && !Array.isArray(m.cartons)) m.cartons = firebaseToArray(m.cartons) || [];
-                        });
-                    }
-                });
                 setBracketData(bracket);
                 migrateBracketData();
                 renderBracket();
