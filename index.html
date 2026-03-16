@@ -19,6 +19,16 @@
     <link rel="dns-prefetch" href="https://taourirt-tournoi-default-rtdb.europe-west1.firebasedatabase.app">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
+    <style>
+        /* Critical CSS - above the fold */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',-apple-system,BlinkMacSystemFont,Roboto,sans-serif;line-height:1.6;color:#374151;background:#fff}
+        .navbar{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:10px 0}
+        .container{max-width:1200px;margin:0 auto;padding:0 20px}
+        .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.2rem;color:#16A34A}
+        .logo-img{width:40px;height:40px;border-radius:50%}
+        .section{contain:layout style paint;content-visibility:auto;contain-intrinsic-size:auto 500px}
+    </style>
     <link rel="preload" href="styles.css" as="style">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
@@ -109,7 +119,7 @@
     <!-- Hero Section - Split Layout -->
     <section id="accueil" class="hero">
         <div class="hero-bg">
-            <img src="field1.jpg" alt="Terrain de football" class="hero-bg-img" fetchpriority="high">
+            <img src="field1.jpg" alt="Terrain de football" class="hero-bg-img" fetchpriority="high" decoding="async">
             <div class="hero-overlay"></div>
         </div>
         <div class="hero-split container">

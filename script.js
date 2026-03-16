@@ -126,6 +126,19 @@ const SITE_DEFAULT_DATA = {
 // ===== CLOUD SYNC OPTIMISÉ (Firebase Realtime Database) =====
 // Chaque section est sauvegardée séparément pour éviter les gros envois
 
+// Firebase converts arrays to objects with numeric keys - convert back
+function firebaseToArray(data) {
+    if (Array.isArray(data)) return data.filter(x => x != null);
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const keys = Object.keys(data);
+        // Check if all keys are numeric (Firebase array-like object)
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+            return keys.map(k => data[k]).filter(x => x != null);
+        }
+    }
+    return null;
+}
+
 async function firebasePut(path, data) {
     try {
         const url = FIREBASE_URL + path + '.json' + (FIREBASE_SECRET ? '?auth=' + FIREBASE_SECRET : '');
@@ -142,7 +155,10 @@ async function firebasePut(path, data) {
 
 async function firebaseGet(path) {
     try {
-        const res = await fetch(FIREBASE_URL + path + '.json');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(FIREBASE_URL + path + '.json', { signal: controller.signal });
+        clearTimeout(timeout);
         if (res.ok) return await res.json();
     } catch (e) {}
     return null;
@@ -151,21 +167,40 @@ async function firebaseGet(path) {
 async function loadFromCloud() {
     try {
         // Load critical data first (scores, standings, tournois)
-        const [tournois, scores, standings, lastUpdate] = await Promise.all([
+        const [rawTournois, rawScores, standings, lastUpdate] = await Promise.all([
             firebaseGet('/tournois'),
             firebaseGet('/scores'),
             firebaseGet('/standings'),
             firebaseGet('/lastUpdate')
         ]);
 
+        // Firebase converts arrays to objects - convert them back
+        const tournois = firebaseToArray(rawTournois);
+        const scores = firebaseToArray(rawScores);
+        // For scores, also convert nested buteurs/cartons arrays
+        if (scores) {
+            scores.forEach(s => {
+                if (s.buteurs && !Array.isArray(s.buteurs)) s.buteurs = firebaseToArray(s.buteurs) || [];
+                if (s.cartons && !Array.isArray(s.cartons)) s.cartons = firebaseToArray(s.cartons) || [];
+            });
+        }
+        // For standings, convert each group's teams array
+        if (standings && typeof standings === 'object') {
+            Object.keys(standings).forEach(group => {
+                if (standings[group] && !Array.isArray(standings[group])) {
+                    standings[group] = firebaseToArray(standings[group]) || [];
+                }
+            });
+        }
+
         const hasData =
-            (Array.isArray(tournois) && tournois.length > 0) ||
-            (Array.isArray(scores) && scores.length > 0) ||
+            (tournois && tournois.length > 0) ||
+            (scores && scores.length > 0) ||
             (standings && typeof standings === 'object' && Object.keys(standings).length > 0);
 
         if (hasData) {
-            if (Array.isArray(tournois) && tournois.length > 0) setData('tournois', tournois);
-            if (Array.isArray(scores) && scores.length > 0) setData('scores', scores);
+            if (tournois && tournois.length > 0) setData('tournois', tournois);
+            if (scores && scores.length > 0) setData('scores', scores);
             if (standings && typeof standings === 'object' && Object.keys(standings).length > 0) setData('standings', standings);
             if (lastUpdate) lastUpdateHash = lastUpdate;
             cloudLoaded = true;
@@ -176,13 +211,27 @@ async function loadFromCloud() {
             firebaseGet('/news'),
             firebaseGet('/gallery'),
             firebaseGet('/bracket')
-        ]).then(([news, gallery, bracket]) => {
-            if (Array.isArray(news) && news.length > 0) setData('news', news);
-            if (Array.isArray(gallery) && gallery.length > 0) {
+        ]).then(([rawNews, rawGallery, bracket]) => {
+            const news = firebaseToArray(rawNews);
+            const gallery = firebaseToArray(rawGallery);
+            if (news && news.length > 0) setData('news', news);
+            if (gallery && gallery.length > 0) {
                 setData('gallery', gallery);
                 renderGallery();
             }
             if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
+                // Convert bracket arrays too
+                ['quarters', 'semis', 'final'].forEach(phase => {
+                    if (bracket[phase] && !Array.isArray(bracket[phase])) {
+                        bracket[phase] = firebaseToArray(bracket[phase]) || [];
+                    }
+                    if (Array.isArray(bracket[phase])) {
+                        bracket[phase].forEach(m => {
+                            if (m.buteurs && !Array.isArray(m.buteurs)) m.buteurs = firebaseToArray(m.buteurs) || [];
+                            if (m.cartons && !Array.isArray(m.cartons)) m.cartons = firebaseToArray(m.cartons) || [];
+                        });
+                    }
+                });
                 setBracketData(bracket);
                 migrateBracketData();
                 renderBracket();
@@ -274,7 +323,17 @@ async function initData() {
         return true;
     }
 
-    // 2) Sinon essayer data.json (données initiales)
+    // 2) Si on a deja des données locales (sessions précédentes), les utiliser
+    const hasLocal = localStorage.getItem('to_scores') || localStorage.getItem('to_tournois');
+    if (hasLocal) {
+        if (!localStorage.getItem('to_standings')) {
+            setData('standings', DEFAULT_STANDINGS);
+        }
+        corrigerDates();
+        return false;
+    }
+
+    // 3) Sinon essayer data.json (premier chargement uniquement)
     let fromFile = false;
     try {
         const response = await fetch('data.json');
@@ -292,12 +351,12 @@ async function initData() {
         console.log('data.json non disponible:', e);
     }
 
-    // 3) Toujours initialiser standings si vide
+    // 4) Toujours initialiser standings si vide
     if (!localStorage.getItem('to_standings')) {
         setData('standings', DEFAULT_STANDINGS);
     }
 
-    // 4) Initialiser avec données par défaut si rien d'autre
+    // 5) Initialiser avec données par défaut si rien d'autre
     if (!fromFile && !localStorage.getItem('to_initialized')) {
         setData('tournois', SITE_DEFAULT_DATA.tournois);
         setData('scores', SITE_DEFAULT_DATA.scores);
@@ -385,20 +444,20 @@ async function forceSyncToCloud() {
 }
 
 function renderAll() {
-    // Critical renders first (visible to user immediately)
     renderJourneeNav();
     renderScores();
     renderStandings();
     renderButeurs();
     initHeroCards();
 
-    // Defer non-critical renders to next idle frame
     requestAnimationFrame(() => {
         renderTournois();
         refreshStats();
         updateMatchTournoiSelect();
         renderBracket();
         renderGallery();
+        initMatchDuJour();
+        initCountdown();
     });
 }
 
@@ -2958,86 +3017,70 @@ function initCountdown() {
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
     initDarkMode();
-    // Sauvegarde locale automatique non destructive
     backupLocalDataIfMissing();
     favoriteTeams = getFavorites();
 
-    // 1) Render immédiat avec données locales (si disponibles)
-    const hasLocal = localStorage.getItem('to_tournois') || localStorage.getItem('to_initialized');
-    if (hasLocal) {
+    function renderCritical() {
         initNavbar();
-        initHeroCards();
-        initStatsAnimation();
-        initAnimations();
         initScoreFilters();
         initSmartFilter();
-        initRechercheGlobale();
-        initContactForm();
-        renderTournois();
         renderJourneeNav();
         renderScores();
-        // renderNews(); // section actualites supprimee
-        renderGallery();
         renderStandings();
         renderButeurs();
-        updateMatchTournoiSelect();
-        renderLiveTicker();
-        initMatchDuJour();
-        initRechercheButeurs();
-        initCountdown();
-        syncRostersFromScores();
-        renderBracket();
+        initHeroCards();
+    }
 
-        // 2) Puis charger Firebase en arrière-plan
+    function renderDeferred() {
+        requestAnimationFrame(() => {
+            initStatsAnimation();
+            initAnimations();
+            initRechercheGlobale();
+            initContactForm();
+            renderTournois();
+            renderGallery();
+            updateMatchTournoiSelect();
+            renderLiveTicker();
+            initMatchDuJour();
+            initRechercheButeurs();
+            initCountdown();
+            syncRostersFromScores();
+            renderBracket();
+        });
+    }
+
+    const hasLocal = localStorage.getItem('to_tournois') || localStorage.getItem('to_initialized');
+    if (hasLocal) {
+        // Render immediately with local data
+        renderCritical();
+        renderDeferred();
+
+        // Then update from Firebase in background
         initData().then(fromCloud => {
             if (fromCloud) {
-                initSmartFilter();
-                renderTournois();
-                renderJourneeNav();
-                renderScores();
-                // renderNews(); // section actualites supprimee
-                renderStandings();
-                renderButeurs();
-                updateMatchTournoiSelect();
-                renderLiveTicker();
-                refreshStats();
-                initMatchDuJour();
-                initCountdown();
-                initHeroCards();
+                renderCritical();
+                requestAnimationFrame(() => {
+                    renderTournois();
+                    updateMatchTournoiSelect();
+                    renderLiveTicker();
+                    refreshStats();
+                    initMatchDuJour();
+                    initCountdown();
+                    renderBracket();
+                    renderGallery();
+                });
             }
         });
     } else {
-        // Premier chargement : attendre les données
+        // First load: wait for data
         await initData();
-        initNavbar();
-        initHeroCards();
-        initStatsAnimation();
-        initAnimations();
-        initScoreFilters();
-        initSmartFilter();
-        initRechercheGlobale();
-        initContactForm();
-        renderTournois();
-        renderJourneeNav();
-        renderScores();
-        // renderNews(); // section actualites supprimee
-        renderGallery();
-        renderStandings();
-        renderButeurs();
-        updateMatchTournoiSelect();
-        renderLiveTicker();
-        initMatchDuJour();
-        initRechercheButeurs();
-        initCountdown();
-        syncRostersFromScores();
-        renderBracket();
+        renderCritical();
+        renderDeferred();
     }
 
     demarrerPolling();
     initPWA();
-    // Afficher la popup Finale Spotlight après un court délai
     setTimeout(() => showFinaleSpotlight(), 1500);
-    // Ajuster les marges apres le rendu complet
     requestAnimationFrame(() => ajusterMarginHero());
     window.addEventListener('resize', () => ajusterMarginHero());
 });
