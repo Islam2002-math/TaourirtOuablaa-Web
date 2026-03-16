@@ -1,19 +1,7 @@
 // ===== CONFIGURATION =====
 const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
 
-// Supabase Configuration
-const SUPABASE_URL = 'https://ovanwwkubcgvrkjxqmfu.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_BA-BOwfzVNqNldduusYbuw_Ih_1n5ac';
-
-// Tables Supabase
-const TABLES = {
-    tournois: 'tournois',
-    scores: 'scores',
-    standings: 'standings',
-    gallery: 'gallery',
-    news: 'news',
-    bracket: 'bracket'
-};
+// Using localStorage only - works offline without any database setup
 
 // SHA-256 hash function for password verification
 async function sha256(message) {
@@ -26,6 +14,35 @@ async function sha256(message) {
 let isAdmin = false;
 let pendingConfirmAction = null;
 let cloudLoaded = false;
+
+// ===== LOCALSTORAGE CLOUD FUNCTIONS =====
+
+async function supabaseGet(table) {
+    // Read from localStorage
+    const data = localStorage.getItem('cloud_' + table);
+    return data ? JSON.parse(data) : null;
+}
+
+async function supabasePut(table, data) {
+    try {
+        // Save to localStorage (simulating cloud)
+        localStorage.setItem('cloud_' + table, JSON.stringify(data));
+        return true;
+    } catch (e) {
+        console.log('LocalStorage save error:', e);
+        return false;
+    }
+}
+
+async function firebasePut(path, data) {
+    const tableName = path.replace('/', '');
+    return await supabasePut(tableName, data);
+}
+
+async function firebaseGet(path) {
+    const tableName = path.replace('/', '');
+    return await supabaseGet(tableName);
+}
 
 // ===== PERFORMANCE HELPERS =====
 function debounce(fn, delay) {
@@ -157,95 +174,9 @@ function firebaseToArray(data) {
     return null;
 }
 
-// ===== SUPABASE FUNCTIONS =====
-
-async function supabaseGet(table) {
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/${table}?select=*`,
-            {
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
-                },
-                signal: controller.signal
-            }
-        );
-        clearTimeout(timeout);
-        if (res.ok) return await res.json();
-    } catch (e) {
-        console.log('Supabase get error:', e);
-    }
-    return null;
-}
-
-async function supabasePut(table, data) {
-    try {
-        // First try to delete existing records
-        await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-            method: 'DELETE',
-            headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        // Then insert new data
-        const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/${table}`,
-            {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates'
-                },
-                body: JSON.stringify(data)
-            }
-        );
-        return res.ok;
-    } catch (e) {
-        console.log('Supabase put error:', e);
-        return false;
-    }
-}
-
-// Legacy Firebase functions (now use Supabase)
-async function firebasePut(path, data) {
-    // Map path to table name
-    const tableName = path.replace('/', '');
-    if (TABLES[tableName]) {
-        // For array data, we need to handle it differently
-        if (Array.isArray(data)) {
-            // Delete existing and insert new
-            await fetch(`${SUPABASE_URL}/rest/v1/${tableName}`, {
-                method: 'DELETE',
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`
-                }
-            });
-        }
-        return await supabasePut(tableName, data);
-    }
-    return false;
-}
-
-async function firebaseGet(path) {
-    const tableName = path.replace('/', '');
-    if (TABLES[tableName]) {
-        return await supabaseGet(tableName);
-    }
-    return null;
-}
-
 async function loadFromCloud() {
     try {
-        // Load critical data first (scores, standings, tournois)
+        // Load from localStorage cloud backup
         const [rawTournois, rawScores, standings, lastUpdate] = await Promise.all([
             supabaseGet('tournois'),
             supabaseGet('scores'),
