@@ -1,9 +1,18 @@
 // ===== CONFIGURATION =====
-const ADMIN_PASSWORD = 'admin2024';
-// Firebase Realtime Database URL - REMPLACEZ PAR VOTRE URL FIREBASE
+// Password stored as SHA-256 hash (not plaintext)
+const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
+// Firebase Realtime Database URL
 const FIREBASE_URL = 'https://taourirt-tournoi-default-rtdb.europe-west1.firebasedatabase.app';
-// Cle secrete pour proteger les ecritures admin
-const FIREBASE_SECRET = '';
+// Cle secrete pour proteger les ecritures admin (Firebase Database Secret)
+const FIREBASE_SECRET = 'szbs4qVFjyeCOlNAfaZYwdRHeNaw7vAruDsmG9EL';
+
+// SHA-256 hash function for password verification
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 let isAdmin = false;
 let pendingConfirmAction = null;
@@ -245,8 +254,31 @@ async function loadFromCloud() {
     return false;
 }
 
+// Backup automatique avant chaque modification (garde les 3 derniers)
+let _lastBackupTs = 0;
+async function autoBackup() {
+    const now = Date.now();
+    // Max 1 backup toutes les 60 secondes
+    if (now - _lastBackupTs < 60000) return;
+    _lastBackupTs = now;
+    try {
+        const backup = {
+            scores: getData('scores'),
+            standings: getStandingsData(),
+            tournois: getData('tournois'),
+            bracket: getBracketData(),
+            ts: new Date().toISOString()
+        };
+        // Rotation : garder 3 backups (slot 0, 1, 2)
+        const slot = Math.floor(now / 60000) % 3;
+        await firebasePut('/backups/' + slot, backup);
+    } catch(e) {}
+}
+
 // Sauvegarde ciblée : envoie uniquement la section modifiée
 async function saveToCloud(section) {
+    // Auto-backup avant de modifier
+    await autoBackup();
     try {
         if (!section || section === 'all') {
             // Sauvegarde complète (import, reset)
@@ -560,7 +592,7 @@ function toggleAdminMode() {
     }
 }
 
-function loginAdmin(e) {
+async function loginAdmin(e) {
     e.preventDefault();
     const now = Date.now();
     if (now < lockoutUntil) {
@@ -569,7 +601,8 @@ function loginAdmin(e) {
         return;
     }
     const password = document.getElementById('adminPassword').value;
-    if (password === ADMIN_PASSWORD) {
+    const passwordHash = await sha256(password);
+    if (passwordHash === ADMIN_PASSWORD_HASH) {
         loginAttempts = 0;
         lockoutUntil = 0;
         isAdmin = true;
@@ -579,13 +612,13 @@ function loginAdmin(e) {
         resetAdminActivityTimer();
         document.addEventListener('click', resetAdminActivityTimer, { passive: true });
         document.addEventListener('keydown', resetAdminActivityTimer, { passive: true });
-        showToast('Mode administrateur activé - Les modifications sont sauvegardées automatiquement en ligne', 'success');
+        showToast('Mode administrateur active', 'success');
     } else {
         loginAttempts++;
         if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
             lockoutUntil = Date.now() + LOCKOUT_DURATION;
             loginAttempts = 0;
-            showToast('5 tentatives échouées. Bloqué 30 secondes.', 'error');
+            showToast('5 tentatives echouees. Bloque 30 secondes.', 'error');
         } else {
             showToast(`Mot de passe incorrect (${loginAttempts}/${MAX_LOGIN_ATTEMPTS})`, 'error');
         }
