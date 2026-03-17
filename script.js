@@ -259,31 +259,10 @@ async function loadFromCloud() {
     return false;
 }
 
-// Backup automatique avant chaque modification (garde les 3 derniers)
-let _lastBackupTs = 0;
-async function autoBackup() {
-    const now = Date.now();
-    // Max 1 backup toutes les 60 secondes
-    if (now - _lastBackupTs < 60000) return;
-    _lastBackupTs = now;
-    try {
-        const backup = {
-            scores: getData('scores'),
-            standings: getStandingsData(),
-            tournois: getData('tournois'),
-            bracket: getBracketData(),
-            ts: new Date().toISOString()
-        };
-        // Rotation : garder 3 backups (slot 0, 1, 2)
-        const slot = Math.floor(now / 60000) % 3;
-        await firebasePut('/backups/' + slot, backup);
-    } catch(e) {}
-}
+// Auto-backup is disabled - using Supabase instead
 
 // Sauvegarde ciblée : envoie uniquement la section modifiée
 async function saveToCloud(section) {
-    // Auto-backup avant de modifier
-    await autoBackup();
     try {
         if (!section || section === 'all') {
             // Sauvegarde complète (import, reset)
@@ -2695,17 +2674,7 @@ function demarrerPolling() {
             if (lastupdate && lastupdate !== lastUpdateHash) {
                 if (lastUpdateHash !== '') {
                     loadFromCloud().then(() => {
-                        renderCritical();
-                        requestAnimationFrame(() => {
-                            renderTournois();
-                            updateMatchTournoiSelect();
-                            renderLiveTicker();
-                            refreshStats();
-                            initMatchDuJour();
-                            initCountdown();
-                            renderBracket();
-                            renderGallery();
-                        });
+                        renderAll();
                     });
                 }
                 lastUpdateHash = lastupdate;
