@@ -261,9 +261,6 @@ async function loadFromCloud(force = false) {
         return false;
     }
 }
-    }
-    return false;
-}
 
 // Auto-backup is disabled - using Supabase instead
 
