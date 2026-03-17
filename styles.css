@@ -2611,6 +2611,10 @@ img {
         height: 32px;
     }
 
+    .hamburger {
+        display: flex !important;
+    }
+
     .nav-menu {
         position: fixed;
         top: 0;
