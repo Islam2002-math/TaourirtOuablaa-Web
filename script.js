@@ -66,6 +66,7 @@ async function firebaseGet(path) {
 }
 // ===== PERFORMANCE HELPERS =====
 let lastUpdateHash = '';
+let pollingInterval = null;
 
 function debounce(fn, delay) {
     let timer;
