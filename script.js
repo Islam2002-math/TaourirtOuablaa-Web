@@ -3046,6 +3046,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = window.supabase;
     window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
+    // Hide splash screen after everything is ready
+    setTimeout(() => {
+        const splash = document.getElementById('splashScreen');
+        if (splash) {
+            splash.classList.add('hidden');
+            setTimeout(() => splash.remove(), 500);
+        }
+    }, 1500);
+    
     initDarkMode();
     backupLocalDataIfMissing();
     favoriteTeams = getFavorites();
