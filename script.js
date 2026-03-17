@@ -2,10 +2,6 @@
 const SUPABASE_URL = 'https://ovanwwkubcgvrkjxqmfu.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YW53d2t1YmNndnJranhxbWZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzUwMjMsImV4cCI6MjA4OTI1MTAyM30.DznbK5pG0V5uNeD5SoepCSDONUYr0snCvmUecHKq7Ic';
 
-// Initialize Supabase client
-const { createClient } = window.supabase;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 // ===== LOCALSTORAGE FALLBACK =====
 const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
 
@@ -3080,6 +3076,10 @@ function initCountdown() {
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Supabase client
+    const { createClient } = window.supabase;
+    window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     initDarkMode();
     backupLocalDataIfMissing();
     favoriteTeams = getFavorites();
