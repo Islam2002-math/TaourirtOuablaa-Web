@@ -36,18 +36,16 @@ async function supabaseGet(table) {
 
 async function supabasePut(table, data) {
     try {
-        // Try to get existing data first
-        const { data: existing } = await supabase.from(table).select('*').limit(1);
-        
-        const recordData = { data: data };
+        // Check if record exists
+        const { data: existing } = await supabase.from(table).select('id').limit(1);
         
         if (existing && existing.length > 0) {
             // Update existing record
-            const { error } = await supabase.from(table).update(recordData).eq('id', existing[0].id);
+            const { error } = await supabase.from(table).update({ data: data }).eq('id', 'default');
             if (error) throw error;
         } else {
             // Insert new record
-            const { error } = await supabase.from(table).insert([{ id: 'default', ...recordData }]);
+            const { error } = await supabase.from(table).insert([{ id: 'default', data: data }]);
             if (error) throw error;
         }
         return true;
@@ -200,11 +198,11 @@ function firebaseToArray(data) {
 async function loadFromCloud() {
     try {
         // Load from localStorage cloud backup
-        const [rawTournois, rawScores, standings, lastUpdate] = await Promise.all([
+        const [rawTournois, rawScores, standings, lastupdate] = await Promise.all([
             supabaseGet('tournois'),
             supabaseGet('scores'),
             supabaseGet('standings'),
-            supabaseGet('lastUpdate')
+            supabaseGet('lastupdate')
         ]);
 
         // Process arrays
@@ -229,7 +227,7 @@ async function loadFromCloud() {
             if (tournois && tournois.length > 0) setData('tournois', tournois);
             if (scores && scores.length > 0) setData('scores', scores);
             if (standings && typeof standings === 'object' && Object.keys(standings).length > 0) setData('standings', standings);
-            if (lastUpdate) lastUpdateHash = lastUpdate;
+            if (lastupdate) lastUpdateHash = lastupdate;
             cloudLoaded = true;
         }
 
@@ -295,7 +293,7 @@ async function saveToCloud(section) {
                 firebasePut('/news', getData('news')),
                 firebasePut('/gallery', getData('gallery')),
                 firebasePut('/bracket', getBracketData()),
-                firebasePut('/lastUpdate', new Date().toISOString())
+                firebasePut('/lastupdate', new Date().toISOString())
             ]);
             return results.every(r => r);
         }
@@ -309,7 +307,7 @@ async function saveToCloud(section) {
             bracket: getBracketData(),
         };
         const ok = await firebasePut('/' + section, sectionData[section] || null);
-        if (ok) await firebasePut('/lastUpdate', new Date().toISOString());
+        if (ok) await firebasePut('/lastupdate', new Date().toISOString());
         return ok;
     } catch (e) {
         console.log('Erreur sauvegarde Firebase:', e);
@@ -2690,29 +2688,24 @@ function envoyerNotification(titre, corps) {
 
 // Polling : vérifier toutes les 30 secondes si les données ont changé
 let lastUpdateHash = '';
-let pollingInterval = null;
-
-function demarrerPolling() {
-    if (pollingInterval) return;
-    pollingInterval = setInterval(async () => {
-        try {
-            const lastUpdate = await firebaseGet('/lastUpdate');
-            if (lastUpdate && lastUpdate !== lastUpdateHash) {
+            const lastupdate = await firebaseGet('/lastupdate');
+            if (lastupdate && lastupdate !== lastUpdateHash) {
                 if (lastUpdateHash !== '') {
-                    // Données ont changé — recharger tout
-                    const loaded = await loadFromCloud();
-                    if (loaded) {
-                        renderAll();
-
-                        // Notifier si permission accordée
-                        if (Notification.permission === 'granted') {
-                            envoyerNotification('Mise a jour des scores', 'Les resultats ont ete mis a jour !');
-                        }
-                        const badge = document.getElementById('notifBadge');
-                        if (badge) { badge.style.display = 'flex'; }
-                    }
+                loadFromCloud().then(() => {
+                    renderCritical();
+                    requestAnimationFrame(() => {
+                        renderTournois();
+                        updateMatchTournoiSelect();
+                        renderLiveTicker();
+                        refreshStats();
+                        initMatchDuJour();
+                        initCountdown();
+                        renderBracket();
+                        renderGallery();
+                    });
+                });
                 }
-                lastUpdateHash = lastUpdate;
+                lastUpdateHash = lastupdate;
             }
         } catch(e) {}
     }, 15000); // toutes les 15 secondes pour plus de réactivité
