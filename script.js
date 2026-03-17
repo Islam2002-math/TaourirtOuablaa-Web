@@ -64,8 +64,9 @@ async function firebaseGet(path) {
     const tableName = path.replace('/', '');
     return await supabaseGet(tableName);
 }
-
 // ===== PERFORMANCE HELPERS =====
+let lastUpdateHash = '';
+
 function debounce(fn, delay) {
     let timer;
     return function(...args) {
@@ -2686,29 +2687,31 @@ function envoyerNotification(titre, corps) {
     } catch(e) {}
 }
 
-// Polling : vérifier toutes les 30 secondes si les données ont changé
-let lastUpdateHash = '';
+function demarrerPolling() {
+    // Polling : vérifier toutes les 15 secondes si les données ont changé
+    setInterval(async () => {
+        try {
             const lastupdate = await firebaseGet('/lastupdate');
             if (lastupdate && lastupdate !== lastUpdateHash) {
                 if (lastUpdateHash !== '') {
-                loadFromCloud().then(() => {
-                    renderCritical();
-                    requestAnimationFrame(() => {
-                        renderTournois();
-                        updateMatchTournoiSelect();
-                        renderLiveTicker();
-                        refreshStats();
-                        initMatchDuJour();
-                        initCountdown();
-                        renderBracket();
-                        renderGallery();
+                    loadFromCloud().then(() => {
+                        renderCritical();
+                        requestAnimationFrame(() => {
+                            renderTournois();
+                            updateMatchTournoiSelect();
+                            renderLiveTicker();
+                            refreshStats();
+                            initMatchDuJour();
+                            initCountdown();
+                            renderBracket();
+                            renderGallery();
+                        });
                     });
-                });
                 }
                 lastUpdateHash = lastupdate;
             }
         } catch(e) {}
-    }, 15000); // toutes les 15 secondes pour plus de réactivité
+    }, 15000);
 
     // Pause polling quand l'onglet est cache, refresh immédiat au retour
     document.addEventListener('visibilitychange', () => {
