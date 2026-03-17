@@ -30,6 +30,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Skip chrome-extension and other non-http requests
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Supabase -> Network only
   if (url.hostname.includes('supabase.co')) {
     event.respondWith(fetch(event.request).catch(() => {
