@@ -21,17 +21,30 @@ let cloudLoaded = false;
 
 async function supabaseGet(table) {
     try {
-        const { data, error } = await supabase.from(table).select('*');
+        const { data, error } = await supabase.from(table).select('*').limit(1);
         if (error) throw error;
-        // Supabase returns [{id: 'default', data: ...}], extract the data field
         if (data && data.length > 0 && data[0].data !== undefined) {
             return data[0].data;
         }
         return data;
     } catch (e) {
-        console.log('Supabase get error:', e);
         return null;
     }
+}
+
+let supabaseCache = {};
+let supabaseCacheTime = 0;
+const SUPABASE_CACHE_DURATION = 5000; // 5 seconds cache
+
+async function supabaseGetCached(table) {
+    const now = Date.now();
+    if (supabaseCache[table] && (now - supabaseCacheTime) < SUPABASE_CACHE_DURATION) {
+        return supabaseCache[table];
+    }
+    const result = await supabaseGet(table);
+    supabaseCache[table] = result;
+    supabaseCacheTime = now;
+    return result;
 }
 
 async function supabasePut(table, data) {
@@ -197,21 +210,23 @@ function firebaseToArray(data) {
     return null;
 }
 
-async function loadFromCloud() {
+async function loadFromCloud(force = false) {
     try {
-        // Load from localStorage cloud backup
+        if (force) {
+            supabaseCache = {};
+            supabaseCacheTime = 0;
+        }
+        
         const [rawTournois, rawScores, standings, lastupdate] = await Promise.all([
-            supabaseGet('tournois'),
-            supabaseGet('scores'),
-            supabaseGet('standings'),
-            supabaseGet('lastupdate')
+            supabaseGetCached('tournois'),
+            supabaseGetCached('scores'),
+            supabaseGetCached('standings'),
+            supabaseGetCached('lastupdate')
         ]);
 
-        // Process arrays
         const tournois = Array.isArray(rawTournois) ? rawTournois : [];
         const scores = Array.isArray(rawScores) ? rawScores : [];
         
-        // For standings, convert each group's teams array
         if (standings && typeof standings === 'object') {
             Object.keys(standings).forEach(group => {
                 if (standings[group] && !Array.isArray(standings[group])) {
@@ -233,29 +248,19 @@ async function loadFromCloud() {
             cloudLoaded = true;
         }
 
-        // Defer non-critical data (gallery, news, bracket) - load in background
-        Promise.all([
-            supabaseGet('news'),
-            supabaseGet('gallery'),
-            supabaseGet('bracket')
-        ]).then(([rawNews, rawGallery, bracket]) => {
-            const news = Array.isArray(rawNews) ? rawNews : [];
-            const gallery = Array.isArray(rawGallery) ? rawGallery : [];
-            if (news && news.length > 0) setData('news', news);
-            if (gallery && gallery.length > 0) {
-                setData('gallery', gallery);
-                renderGallery();
-            }
-            if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
-                setBracketData(bracket);
-                migrateBracketData();
-                renderBracket();
-            }
-        }).catch(() => {});
+        // Load bracket immediately
+        const bracket = await supabaseGetCached('bracket');
+        if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
+            setBracketData(bracket);
+            migrateBracketData();
+            renderBracket();
+        }
 
         return hasData;
     } catch (e) {
-        console.log('Firebase non disponible, utilisation des données locales');
+        return false;
+    }
+}
     }
     return false;
 }
@@ -299,9 +304,11 @@ async function saveToCloud(section) {
 // Sauvegarde auto après chaque modification admin (avec retry)
 async function syncAfterChange(section) {
     if (!isAdmin) return;
+    // Clear cache before saving
+    supabaseCache = {};
+    supabaseCacheTime = 0;
     let ok = await saveToCloud(section);
     if (!ok) {
-        // Retry once after 2s
         await new Promise(r => setTimeout(r, 2000));
         ok = await saveToCloud(section);
     }
@@ -2668,32 +2675,19 @@ function envoyerNotification(titre, corps) {
 }
 
 function demarrerPolling() {
-    // Polling : vérifier toutes les 15 secondes si les données ont changé
-    setInterval(async () => {
-        try {
-            const lastupdate = await firebaseGet('/lastupdate');
-            if (lastupdate && lastupdate !== lastUpdateHash) {
-                if (lastUpdateHash !== '') {
-                    loadFromCloud().then(() => {
-                        renderAll();
-                    });
-                }
-                lastUpdateHash = lastupdate;
-            }
-        } catch(e) {}
-    }, 15000);
+    // Simple polling every 30 seconds to check for updates
+    setInterval(() => {
+        loadFromCloud(true).then(loaded => {
+            if (loaded) renderAll();
+        });
+    }, 30000);
 
-    // Pause polling quand l'onglet est cache, refresh immédiat au retour
+    // Refresh on tab visibility change
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-        } else {
-            // Refresh immédiat au retour sur l'onglet
-            loadFromCloud().then(loaded => {
+        if (!document.hidden) {
+            loadFromCloud(true).then(loaded => {
                 if (loaded) renderAll();
             });
-            demarrerPolling();
         }
     });
 }
