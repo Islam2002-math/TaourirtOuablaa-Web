@@ -1,7 +1,13 @@
-// ===== CONFIGURATION =====
-const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
+// ===== SUPABASE CONFIGURATION =====
+const SUPABASE_URL = 'https://ovanwwkubcgvrkjxqmfu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92YW53d2t1YmNndnJranhxbWZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NzUwMjMsImV4cCI6MjA4OTI1MTAyM30.DznbK5pG0V5uNeD5SoepCSDONUYr0snCvmUecHKq7Ic';
 
-// Using localStorage only - works offline without any database setup
+// Initialize Supabase client
+const { createClient } = window.supabase;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== LOCALSTORAGE FALLBACK =====
+const ADMIN_PASSWORD_HASH = 'b8b8eb83374c0bf3b1c3224159f6119dbfff1b7ed6dfecdd80d4e8a895790a34';
 
 // SHA-256 hash function for password verification
 async function sha256(message) {
@@ -15,21 +21,42 @@ let isAdmin = false;
 let pendingConfirmAction = null;
 let cloudLoaded = false;
 
-// ===== LOCALSTORAGE CLOUD FUNCTIONS =====
+// ===== SUPABASE CLOUD FUNCTIONS =====
 
 async function supabaseGet(table) {
-    // Read from localStorage
-    const data = localStorage.getItem('cloud_' + table);
-    return data ? JSON.parse(data) : null;
+    try {
+        const { data, error } = await supabase.from(table).select('*');
+        if (error) throw error;
+        // Supabase returns [{id: 'default', data: ...}], extract the data field
+        if (data && data.length > 0 && data[0].data !== undefined) {
+            return data[0].data;
+        }
+        return data;
+    } catch (e) {
+        console.log('Supabase get error:', e);
+        return null;
+    }
 }
 
 async function supabasePut(table, data) {
     try {
-        // Save to localStorage (simulating cloud)
-        localStorage.setItem('cloud_' + table, JSON.stringify(data));
+        // Try to get existing data first
+        const { data: existing } = await supabase.from(table).select('*').limit(1);
+        
+        const recordData = { data: data };
+        
+        if (existing && existing.length > 0) {
+            // Update existing record
+            const { error } = await supabase.from(table).update(recordData).eq('id', existing[0].id);
+            if (error) throw error;
+        } else {
+            // Insert new record
+            const { error } = await supabase.from(table).insert([{ id: 'default', ...recordData }]);
+            if (error) throw error;
+        }
         return true;
     } catch (e) {
-        console.log('LocalStorage save error:', e);
+        console.log('Supabase put error:', e);
         return false;
     }
 }
