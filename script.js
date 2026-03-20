@@ -37,19 +37,9 @@ async function supabaseGet(table) {
     }
 }
 
-let supabaseCache = {};
-let supabaseCacheTime = 0;
-const SUPABASE_CACHE_DURATION = 5000; // 5 seconds cache
-
 async function supabaseGetCached(table) {
-    const now = Date.now();
-    if (supabaseCache[table] && (now - supabaseCacheTime) < SUPABASE_CACHE_DURATION) {
-        return supabaseCache[table];
-    }
-    const result = await supabaseGet(table);
-    supabaseCache[table] = result;
-    supabaseCacheTime = now;
-    return result;
+    // No caching - always get fresh data
+    return await supabaseGet(table);
 }
 
 async function supabasePut(table, data) {
@@ -225,23 +215,17 @@ function firebaseToArray(data) {
     return null;
 }
 
-async function loadFromCloud(force = false) {
+async function loadFromCloud(force) {
     try {
-        if (force) {
-            supabaseCache = {};
-            supabaseCacheTime = 0;
-        }
-        
-        // Load ALL data from Supabase (including bracket) BEFORE setting localStorage
+        // Always get fresh data from Supabase
         const [rawTournois, rawScores, standings, lastupdate, bracket] = await Promise.all([
-            supabaseGetCached('tournois'),
-            supabaseGetCached('scores'),
-            supabaseGetCached('standings'),
-            supabaseGetCached('lastupdate'),
-            supabaseGetCached('bracket')
+            supabaseGet('tournois'),
+            supabaseGet('scores'),
+            supabaseGet('standings'),
+            supabaseGet('lastupdate'),
+            supabaseGet('bracket')
         ]);
 
-        // Process all data
         const tournois = Array.isArray(rawTournois) ? rawTournois : [];
         const scores = Array.isArray(rawScores) ? rawScores : [];
         
@@ -253,19 +237,18 @@ async function loadFromCloud(force = false) {
             });
         }
 
-        // Save all data to localStorage FIRST
+        // Save all data to localStorage
         if (tournois.length > 0) setData('tournois', tournois);
         if (scores.length > 0) setData('scores', scores);
         if (standings && typeof standings === 'object' && Object.keys(standings).length > 0) setData('standings', standings);
         
-        // Save bracket to localStorage immediately
+        // Save bracket to localStorage
         if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
             setBracketData(bracket);
             migrateBracketData();
             renderBracket();
         }
 
-        // Update lastUpdateHash
         if (lastupdate) lastUpdateHash = lastupdate;
         
         const hasData = tournois.length > 0 || scores.length > 0;
@@ -317,30 +300,20 @@ async function saveToCloud(section) {
     }
 }
 
-// Sauvegarde auto après chaque modification admin (avec retry)
+// Sauvegarde auto après chaque modification admin
 async function syncAfterChange(section) {
     if (!isAdmin) return;
     
-    // Clear cache before saving
-    supabaseCache = {};
-    supabaseCacheTime = 0;
-    
-    // Log what we're about to save
     console.log('SYNC START - Section:', section);
-    console.log('Bracket data to save:', getBracketData());
+    console.log('Bracket data to save:', JSON.stringify(getBracketData()));
     
     let ok = await saveToCloud(section);
-    if (!ok) {
-        console.log('First save failed, retrying...');
-        await new Promise(r => setTimeout(r, 2000));
-        ok = await saveToCloud(section);
-    }
     if (ok) {
         console.log('SYNC SUCCESS');
-        showToast('Données en ligne ✓ (visible par tous)', 'success');
+        showToast('Données en ligne ✓', 'success');
     } else {
         console.log('SYNC FAILED');
-        showToast('⚠ Échec sync cloud — sauvegardé localement. Réessayez avec le bouton Synchroniser.', 'error');
+        showToast('⚠ Échec sync cloud', 'error');
     }
 }
 
@@ -367,52 +340,31 @@ function corrigerDates() {
 
 // ===== CHARGEMENT DES DONNÉES =====
 async function initData() {
-    // FORCER le chargement depuis le cloud
-    const fromCloud = await loadFromCloud(true);
+    // Load from cloud
+    await loadFromCloud();
     
-    // TOUJOURS charger le bracket depuis le cloud
-    const cloudBracket = await supabaseGetCached('bracket');
+    // Load bracket from cloud
+    const cloudBracket = await supabaseGet('bracket');
     if (cloudBracket && typeof cloudBracket === 'object' && Object.keys(cloudBracket).length > 0) {
-        console.log('Loading bracket from cloud:', cloudBracket);
         setBracketData(cloudBracket);
         migrateBracketData();
         renderBracket();
-    } else {
-        // Si pas de bracket dans le cloud, charger depuis localStorage
-        const localBracket = getBracketData();
-        if (localBracket && Object.keys(localBracket).length > 0) {
-            migrateBracketData();
-            renderBracket();
+    }
+    
+    // Check if we have local data
+    const hasLocal = localStorage.getItem('to_scores') || localStorage.getItem('to_tournois');
+    if (!hasLocal) {
+        // First time - use defaults
+        if (!localStorage.getItem('to_initialized')) {
+            setData('tournois', SITE_DEFAULT_DATA.tournois);
+            setData('scores', SITE_DEFAULT_DATA.scores);
+            setData('news', SITE_DEFAULT_DATA.news);
+            setData('gallery', SITE_DEFAULT_DATA.gallery);
+            localStorage.setItem('to_initialized', 'true');
         }
     }
     
-    if (fromCloud) {
-        if (!localStorage.getItem('to_standings')) {
-            setData('standings', DEFAULT_STANDINGS);
-        }
-        corrigerDates();
-        return true;
-    }
-
-    // Si pas de données cloud, utiliser localStorage
-    const hasLocal = localStorage.getItem('to_scores') || localStorage.getItem('to_tournois');
-    if (hasLocal) {
-        if (!localStorage.getItem('to_standings')) {
-            setData('standings', DEFAULT_STANDINGS);
-        }
-        corrigerDates();
-        return false;
-    }
-
-    // Premier chargement - initialiser avec données par défaut
-    if (!localStorage.getItem('to_initialized')) {
-        setData('tournois', SITE_DEFAULT_DATA.tournois);
-        setData('scores', SITE_DEFAULT_DATA.scores);
-        setData('news', SITE_DEFAULT_DATA.news);
-        setData('gallery', SITE_DEFAULT_DATA.gallery);
-        localStorage.setItem('to_initialized', 'true');
-    }
-    return false;
+    return hasLocal;
 }
 
 // ===== EXPORT / IMPORT DONNÉES =====
@@ -2705,25 +2657,7 @@ function envoyerNotification(titre, corps) {
 }
 
 function demarrerPolling() {
-    // Only do minimal polling - just update timestamps, don't reload all data
-    setInterval(async () => {
-        // Only check if admin is logged in and sync lastupdate
-        if (isAdmin) {
-            const lastupdate = await supabaseGetCached('lastupdate');
-            if (lastupdate && lastupdate !== lastUpdateHash) {
-                // Don't reload everything, just notify user
-                showToast('Nouvelles données disponibles sur le cloud!', 'info');
-            }
-        }
-    }, 60000); // Check every 60 seconds, not 30
-
-    // Only refresh on tab visibility change if user explicitly returns
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && isAdmin) {
-            // Show a subtle notification instead of full reload
-            showToast('Données synchronisées', 'info');
-        }
-    });
+    // Polling completely disabled - user must manually sync
 }
 
 // ===== MATCH DU JOUR =====
