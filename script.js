@@ -358,8 +358,17 @@ function corrigerDates() {
 
 // ===== CHARGEMENT DES DONNÉES =====
 async function initData() {
-    // 1) Essayer le cloud en priorité (contient les modifs admin)
-    const fromCloud = await loadFromCloud();
+    // 1) TOUJOURS charger depuis le cloud d'abord (incluant bracket)
+    const fromCloud = await loadFromCloud(true); // force = true
+    
+    // Also load bracket from cloud even if other data is local
+    const cloudBracket = await supabaseGetCached('bracket');
+    if (cloudBracket && typeof cloudBracket === 'object' && Object.keys(cloudBracket).length > 0) {
+        setBracketData(cloudBracket);
+        migrateBracketData();
+        renderBracket();
+    }
+    
     if (fromCloud) {
         if (!localStorage.getItem('to_standings')) {
             setData('standings', DEFAULT_STANDINGS);
@@ -368,11 +377,17 @@ async function initData() {
         return true;
     }
 
-    // 2) Si on a deja des données locales (sessions précédentes), les utiliser
+    // 2) Si on a déjà des données locales (sessions précédentes), les utiliser
     const hasLocal = localStorage.getItem('to_scores') || localStorage.getItem('to_tournois');
     if (hasLocal) {
         if (!localStorage.getItem('to_standings')) {
             setData('standings', DEFAULT_STANDINGS);
+        }
+        // Also load bracket from localStorage if cloud didn't have it
+        const localBracket = getBracketData();
+        if (localBracket && Object.keys(localBracket).length > 0) {
+            migrateBracketData();
+            renderBracket();
         }
         corrigerDates();
         return false;
