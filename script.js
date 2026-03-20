@@ -22,12 +22,17 @@ let cloudLoaded = false;
 async function supabaseGet(table) {
     try {
         const { data, error } = await supabase.from(table).select('*').limit(1);
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase get error:', error);
+            throw error;
+        }
+        console.log('Loaded from Supabase:', table, data);
         if (data && data.length > 0 && data[0].data !== undefined) {
             return data[0].data;
         }
         return data;
     } catch (e) {
+        console.error('Supabase get error:', e);
         return null;
     }
 }
@@ -49,18 +54,28 @@ async function supabaseGetCached(table) {
 
 async function supabasePut(table, data) {
     try {
+        console.log('Saving to Supabase:', table, data);
+        
         // Check if record exists
         const { data: existing } = await supabase.from(table).select('id').limit(1);
+        console.log('Existing record:', existing);
         
         if (existing && existing.length > 0) {
             // Update existing record
             const { error } = await supabase.from(table).update({ data: data }).eq('id', 'default');
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase update error:', error);
+                throw error;
+            }
         } else {
             // Insert new record
             const { error } = await supabase.from(table).insert([{ id: 'default', data: data }]);
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase insert error:', error);
+                throw error;
+            }
         }
+        console.log('Saved successfully to:', table);
         return true;
     } catch (e) {
         console.log('Supabase put error:', e);
