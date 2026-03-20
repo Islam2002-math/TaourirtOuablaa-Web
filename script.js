@@ -2705,37 +2705,23 @@ function envoyerNotification(titre, corps) {
 }
 
 function demarrerPolling() {
-    // Simple polling every 30 seconds to check for updates
-    setInterval(() => {
-        loadFromCloud(true).then(loaded => {
-            if (loaded) {
-                renderAll();
+    // Only do minimal polling - just update timestamps, don't reload all data
+    setInterval(async () => {
+        // Only check if admin is logged in and sync lastupdate
+        if (isAdmin) {
+            const lastupdate = await supabaseGetCached('lastupdate');
+            if (lastupdate && lastupdate !== lastUpdateHash) {
+                // Don't reload everything, just notify user
+                showToast('Nouvelles données disponibles sur le cloud!', 'info');
             }
-        });
-        // Also reload bracket separately
-        supabaseGetCached('bracket').then(bracket => {
-            if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
-                setBracketData(bracket);
-                migrateBracketData();
-                renderBracket();
-            }
-        });
-    }, 30000);
+        }
+    }, 60000); // Check every 60 seconds, not 30
 
-    // Refresh on tab visibility change
+    // Only refresh on tab visibility change if user explicitly returns
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            loadFromCloud(true).then(loaded => {
-                if (loaded) renderAll();
-            });
-            // Also reload bracket
-            supabaseGetCached('bracket').then(bracket => {
-                if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
-                    setBracketData(bracket);
-                    migrateBracketData();
-                    renderBracket();
-                }
-            });
+        if (!document.hidden && isAdmin) {
+            // Show a subtle notification instead of full reload
+            showToast('Données synchronisées', 'info');
         }
     });
 }
