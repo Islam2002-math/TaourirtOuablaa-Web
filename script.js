@@ -232,13 +232,16 @@ async function loadFromCloud(force = false) {
             supabaseCacheTime = 0;
         }
         
-        const [rawTournois, rawScores, standings, lastupdate] = await Promise.all([
+        // Load ALL data from Supabase (including bracket) BEFORE setting localStorage
+        const [rawTournois, rawScores, standings, lastupdate, bracket] = await Promise.all([
             supabaseGetCached('tournois'),
             supabaseGetCached('scores'),
             supabaseGetCached('standings'),
-            supabaseGetCached('lastupdate')
+            supabaseGetCached('lastupdate'),
+            supabaseGetCached('bracket')
         ]);
 
+        // Process all data
         const tournois = Array.isArray(rawTournois) ? rawTournois : [];
         const scores = Array.isArray(rawScores) ? rawScores : [];
         
@@ -250,26 +253,23 @@ async function loadFromCloud(force = false) {
             });
         }
 
-        const hasData =
-            (tournois && tournois.length > 0) ||
-            (scores && scores.length > 0) ||
-            (standings && typeof standings === 'object' && Object.keys(standings).length > 0);
-
-        if (hasData) {
-            if (tournois && tournois.length > 0) setData('tournois', tournois);
-            if (scores && scores.length > 0) setData('scores', scores);
-            if (standings && typeof standings === 'object' && Object.keys(standings).length > 0) setData('standings', standings);
-            if (lastupdate) lastUpdateHash = lastupdate;
-            cloudLoaded = true;
-        }
-
-        // Load bracket immediately
-        const bracket = await supabaseGetCached('bracket');
+        // Save all data to localStorage FIRST
+        if (tournois.length > 0) setData('tournois', tournois);
+        if (scores.length > 0) setData('scores', scores);
+        if (standings && typeof standings === 'object' && Object.keys(standings).length > 0) setData('standings', standings);
+        
+        // Save bracket to localStorage immediately
         if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
             setBracketData(bracket);
             migrateBracketData();
             renderBracket();
         }
+
+        // Update lastUpdateHash
+        if (lastupdate) lastUpdateHash = lastupdate;
+        
+        const hasData = tournois.length > 0 || scores.length > 0;
+        if (hasData) cloudLoaded = true;
 
         return hasData;
     } catch (e) {
@@ -282,15 +282,17 @@ async function loadFromCloud(force = false) {
 // Sauvegarde ciblée : envoie uniquement la section modifiée
 async function saveToCloud(section) {
     try {
+        // Always save bracket data when saving anything
+        const bracketData = getBracketData();
+        
         if (!section || section === 'all') {
-            // Sauvegarde complète (import, reset)
             const results = await Promise.all([
                 firebasePut('/tournois', getData('tournois')),
                 firebasePut('/scores', getData('scores')),
                 firebasePut('/standings', getStandingsData()),
                 firebasePut('/news', getData('news')),
                 firebasePut('/gallery', getData('gallery')),
-                firebasePut('/bracket', getBracketData()),
+                firebasePut('/bracket', bracketData),
                 firebasePut('/lastupdate', new Date().toISOString())
             ]);
             return results.every(r => r);
@@ -302,13 +304,15 @@ async function saveToCloud(section) {
             standings: getStandingsData(),
             news: getData('news'),
             gallery: getData('gallery'),
-            bracket: getBracketData(),
+            bracket: bracketData,
         };
         const ok = await firebasePut('/' + section, sectionData[section] || null);
+        // Also save bracket every time for safety
+        await firebasePut('/bracket', bracketData);
         if (ok) await firebasePut('/lastupdate', new Date().toISOString());
         return ok;
     } catch (e) {
-        console.log('Erreur sauvegarde Firebase:', e);
+        console.log('Erreur sauvegarde:', e);
         return false;
     }
 }
