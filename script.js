@@ -358,15 +358,23 @@ function corrigerDates() {
 
 // ===== CHARGEMENT DES DONNÉES =====
 async function initData() {
-    // 1) TOUJOURS charger depuis le cloud d'abord (incluant bracket)
-    const fromCloud = await loadFromCloud(true); // force = true
+    // FORCER le chargement depuis le cloud
+    const fromCloud = await loadFromCloud(true);
     
-    // Also load bracket from cloud even if other data is local
+    // TOUJOURS charger le bracket depuis le cloud
     const cloudBracket = await supabaseGetCached('bracket');
     if (cloudBracket && typeof cloudBracket === 'object' && Object.keys(cloudBracket).length > 0) {
+        console.log('Loading bracket from cloud:', cloudBracket);
         setBracketData(cloudBracket);
         migrateBracketData();
         renderBracket();
+    } else {
+        // Si pas de bracket dans le cloud, charger depuis localStorage
+        const localBracket = getBracketData();
+        if (localBracket && Object.keys(localBracket).length > 0) {
+            migrateBracketData();
+            renderBracket();
+        }
     }
     
     if (fromCloud) {
@@ -377,47 +385,18 @@ async function initData() {
         return true;
     }
 
-    // 2) Si on a déjà des données locales (sessions précédentes), les utiliser
+    // Si pas de données cloud, utiliser localStorage
     const hasLocal = localStorage.getItem('to_scores') || localStorage.getItem('to_tournois');
     if (hasLocal) {
         if (!localStorage.getItem('to_standings')) {
             setData('standings', DEFAULT_STANDINGS);
         }
-        // Also load bracket from localStorage if cloud didn't have it
-        const localBracket = getBracketData();
-        if (localBracket && Object.keys(localBracket).length > 0) {
-            migrateBracketData();
-            renderBracket();
-        }
         corrigerDates();
         return false;
     }
 
-    // 3) Sinon essayer data.json (premier chargement uniquement)
-    let fromFile = false;
-    try {
-        const response = await fetch('data.json');
-        if (response.ok) {
-            const fileData = await response.json();
-            if (fileData.tournois) setData('tournois', fileData.tournois);
-            if (fileData.scores) setData('scores', fileData.scores);
-            if (fileData.news) setData('news', fileData.news);
-            if (fileData.gallery) setData('gallery', fileData.gallery);
-            if (fileData.standings) setData('standings', fileData.standings);
-            fromFile = true;
-            saveToCloud();
-        }
-    } catch (e) {
-        console.log('data.json non disponible:', e);
-    }
-
-    // 4) Toujours initialiser standings si vide
-    if (!localStorage.getItem('to_standings')) {
-        setData('standings', DEFAULT_STANDINGS);
-    }
-
-    // 5) Initialiser avec données par défaut si rien d'autre
-    if (!fromFile && !localStorage.getItem('to_initialized')) {
+    // Premier chargement - initialiser avec données par défaut
+    if (!localStorage.getItem('to_initialized')) {
         setData('tournois', SITE_DEFAULT_DATA.tournois);
         setData('scores', SITE_DEFAULT_DATA.scores);
         setData('news', SITE_DEFAULT_DATA.news);
@@ -2720,7 +2699,17 @@ function demarrerPolling() {
     // Simple polling every 30 seconds to check for updates
     setInterval(() => {
         loadFromCloud(true).then(loaded => {
-            if (loaded) renderAll();
+            if (loaded) {
+                renderAll();
+            }
+        });
+        // Also reload bracket separately
+        supabaseGetCached('bracket').then(bracket => {
+            if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
+                setBracketData(bracket);
+                migrateBracketData();
+                renderBracket();
+            }
         });
     }, 30000);
 
@@ -2729,6 +2718,14 @@ function demarrerPolling() {
         if (!document.hidden) {
             loadFromCloud(true).then(loaded => {
                 if (loaded) renderAll();
+            });
+            // Also reload bracket
+            supabaseGetCached('bracket').then(bracket => {
+                if (bracket && typeof bracket === 'object' && Object.keys(bracket).length > 0) {
+                    setBracketData(bracket);
+                    migrateBracketData();
+                    renderBracket();
+                }
             });
         }
     });
