@@ -320,17 +320,26 @@ async function saveToCloud(section) {
 // Sauvegarde auto après chaque modification admin (avec retry)
 async function syncAfterChange(section) {
     if (!isAdmin) return;
+    
     // Clear cache before saving
     supabaseCache = {};
     supabaseCacheTime = 0;
+    
+    // Log what we're about to save
+    console.log('SYNC START - Section:', section);
+    console.log('Bracket data to save:', getBracketData());
+    
     let ok = await saveToCloud(section);
     if (!ok) {
+        console.log('First save failed, retrying...');
         await new Promise(r => setTimeout(r, 2000));
         ok = await saveToCloud(section);
     }
     if (ok) {
+        console.log('SYNC SUCCESS');
         showToast('Données en ligne ✓ (visible par tous)', 'success');
     } else {
+        console.log('SYNC FAILED');
         showToast('⚠ Échec sync cloud — sauvegardé localement. Réessayez avec le bouton Synchroniser.', 'error');
     }
 }
