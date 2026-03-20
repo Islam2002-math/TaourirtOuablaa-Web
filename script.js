@@ -3177,10 +3177,18 @@ function backupLocalDataIfMissing() {
 
 // ===== BRACKET / ARBRE TOURNOI - FIFA STYLE =====
 function getBracketData() {
-    try { return JSON.parse(localStorage.getItem('to_bracket') || '{}'); } catch(e) { return {}; }
+    try { 
+        const data = JSON.parse(localStorage.getItem('to_bracket') || '{}'); 
+        console.log('getBracketData:', data);
+        return data; 
+    } catch(e) { 
+        console.log('getBracketData error:', e);
+        return {}; 
+    }
 }
 
 function setBracketData(data) {
+    console.log('setBracketData:', data);
     localStorage.setItem('to_bracket', JSON.stringify(data));
 }
 
@@ -3255,10 +3263,26 @@ function renderBracket() {
     if (!container) return;
 
     let data = getBracketData();
-    if (!data.quarters || data.quarters.length === 0) {
+    
+    // Only generate default if data is completely empty
+    if (!data || Object.keys(data).length === 0) {
+        console.log('No bracket data, generating default...');
         data = generateDefaultBracket();
         setBracketData(data);
+        // Try to load from cloud instead
+        supabaseGetCached('bracket').then(cloudData => {
+            if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+                console.log('Found bracket in cloud, using it instead');
+                setBracketData(cloudData);
+                data = cloudData;
+                migrateBracketData();
+                propagateWinners(data);
+                updateBracketDisplay(data);
+            }
+        });
+        return;
     }
+    
     migrateBracketData();
     data = getBracketData();
     propagateWinners(data);
