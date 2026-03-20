@@ -3188,7 +3188,7 @@ function backupLocalDataIfMissing() {
 function getBracketData() {
     try { 
         const data = JSON.parse(localStorage.getItem('to_bracket') || '{}'); 
-        console.log('getBracketData:', data);
+        console.log('getBracketData:', JSON.stringify(data, null, 2));
         return data; 
     } catch(e) { 
         console.log('getBracketData error:', e);
@@ -3197,7 +3197,7 @@ function getBracketData() {
 }
 
 function setBracketData(data) {
-    console.log('setBracketData:', data);
+    console.log('setBracketData:', JSON.stringify(data, null, 2));
     localStorage.setItem('to_bracket', JSON.stringify(data));
 }
 
